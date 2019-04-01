@@ -129,7 +129,7 @@ app-deploy:
  - sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HubOrg --where "SignupUsername='$SCRATCH_ORG_USERNAME'"
 
  ## Read your variable into an environment variable
- - export PACKAGE_VERSION_ID=`cat ./assets/PACKAGE_VERSION_ID.TXT`
+ - export PACKAGE_VERSION_ID=`cat PACKAGE_VERSION_ID.TXT`
  - echo $PACKAGE_VERSION_ID
 
  ## Install the package
