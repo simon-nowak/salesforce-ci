@@ -3,7 +3,7 @@
 #
 before_script:
  # Decrypt server key
- - openssl aes-256-cbc -d -md md5 -in assets/server.key.enc -out assets/server.key -k $SERVER_KEY_PASSWORD
+ - openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
 
  # Install jq
  - apt update && apt -y install jq
@@ -43,7 +43,7 @@ code-testing:
  script:
 
  # Authenticate to the Dev Hub using the server key
- - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile assets/server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+ - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
 
  # Create scratch org
  - sfdx force:org:create --targetdevhubusername HubOrg --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
@@ -76,7 +76,7 @@ integration-testing:
  script:
 
  # Authenticate to the Dev Hub using the server key
- - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile assets/server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+ - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
 
  ## Create scratch org
  - sfdx force:org:create --targetdevhubusername HubOrg --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
@@ -123,7 +123,7 @@ app-deploy:
  - echo $SCRATCH_ORG_USERNAME
 
  ## Authenticate with your playground or sandbox environment
- - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile assets/server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+ - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
 
  ## Delete Scratch Org that you were inspecting from your browser
  - sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HubOrg --where "SignupUsername='$SCRATCH_ORG_USERNAME'"
