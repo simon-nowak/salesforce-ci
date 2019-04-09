@@ -1,10 +1,7 @@
-# DreamHouse Aura Sample Application
+# DreamHouse Aura Sample Application for Salesforce
 
-> IMPORTANT: This is the Aura version of the DreamHouse sample application. If you are looking for the new Lightning Web Components version, click [here](https://github.com/dreamhouseapp/dreamhouse-lwc).
+This is the GitLab version of the Aura version of the [Dreamhouse sample application](http://www.dreamhouseapp.io/) from Salesforce.com.
 
-![dreamhouse-logo](dreamhouse-logo.png)
-
-[![CircleCI](https://circleci.com/gh/dreamhouseapp/dreamhouse-sfdx.svg?style=svg)](https://circleci.com/gh/dreamhouseapp/dreamhouse-sfdx)
 
 Dreamhouse is a sample application for the real estate business built on the Salesforce platform. It allows brokers to manage their properties and customers to find their dream house.
 
@@ -29,8 +26,8 @@ This is the recommended installation option for developers who want to experienc
 
 1. Clone the **dreamhouse-sfdx** repository:
     ```
-    git clone https://github.com/dreamhouseapp/dreamhouse-sfdx
-    cd dreamhouse-sfdx
+    git clone https://gitlab.com/fpotter/examples/salesforce/dreamhouse.git
+    cd dreamhouse
     ```
 
 1. Create a scratch org and provide it with an alias of your choice (**dh** in the command below):
