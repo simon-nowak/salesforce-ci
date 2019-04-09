@@ -1,0 +1,5 @@
+*.page gitlab-language=html
+*.cls gitlab-language=java
+*.trigger gitlab-language=java
+*.cmp gitlab-language=xml
+*.design gitlab-language=xml
