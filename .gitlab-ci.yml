@@ -5,6 +5,9 @@ before_script:
  # Decrypt server key
  - openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
 
+ # For troubleshooting - have a look at part of the server key
+ - cat server.key | head -n 2 && cat server.key | tail -n 2
+
  # Install jq
  - apt update && apt -y install jq
 
