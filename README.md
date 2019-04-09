@@ -1,10 +1,6 @@
-# DreamHouse Aura Sample Application
+# DreamHouse Aura Sample Application for Salesforce
 
-> IMPORTANT: This is the Aura version of the DreamHouse sample application. If you are looking for the new Lightning Web Components version, click [here](https://github.com/dreamhouseapp/dreamhouse-lwc).
-
-![dreamhouse-logo](dreamhouse-logo.png)
-
-[![CircleCI](https://circleci.com/gh/dreamhouseapp/dreamhouse-sfdx.svg?style=svg)](https://circleci.com/gh/dreamhouseapp/dreamhouse-sfdx)
+This is the GitLab version of the Aura version of the [Dreamhouse sample application](http://www.dreamhouseapp.io/) from Salesforce.com.
 
 Dreamhouse is a sample application for the real estate business built on the Salesforce platform. It allows brokers to manage their properties and customers to find their dream house.
 
@@ -29,8 +25,8 @@ This is the recommended installation option for developers who want to experienc
 
 1. Clone the **dreamhouse-sfdx** repository:
     ```
-    git clone https://github.com/dreamhouseapp/dreamhouse-sfdx
-    cd dreamhouse-sfdx
+    git clone https://gitlab.com/fpotter/examples/salesforce/dreamhouse.git
+    cd dreamhouse
     ```
 
 1. Create a scratch org and provide it with an alias of your choice (**dh** in the command below):
@@ -146,3 +142,12 @@ DreamHouse has many more features not discussed here. For example, DreamHouse al
 - Integrate with IoT devices like smart lights, smart thermostats, and smart locks
 
 Head over to [dreamhouseapp.io](http://dreamhouseapp.io) to learn more.
+
+The [original version](https://github.com/dreamhouseapp/dreamhouse-sfdx) of this project lives on another Git hosting service.
+
+## Notes on differences
+
+This version is slightly different from the Trailhead version. Notably:
+
+- Expects `secure.key.enc` to be at the root, not in an `assets` directory.
+- No support for a `JWT` directory within the project - more securely, use `~/.jwt` to keep certificates and the like.
