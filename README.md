@@ -2,7 +2,6 @@
 
 This is the GitLab version of the Aura version of the [Dreamhouse sample application](http://www.dreamhouseapp.io/) from Salesforce.com.
 
-
 Dreamhouse is a sample application for the real estate business built on the Salesforce platform. It allows brokers to manage their properties and customers to find their dream house.
 
 ## Table of contents
@@ -143,3 +142,5 @@ DreamHouse has many more features not discussed here. For example, DreamHouse al
 - Integrate with IoT devices like smart lights, smart thermostats, and smart locks
 
 Head over to [dreamhouseapp.io](http://dreamhouseapp.io) to learn more.
+
+The [original version](https://github.com/dreamhouseapp/dreamhouse-sfdx) of this project lives on another Git hosting service.
