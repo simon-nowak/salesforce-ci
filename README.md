@@ -4,14 +4,6 @@ This is the GitLab version of the Aura version of the [Dreamhouse sample applica
 
 Dreamhouse is a sample application for the real estate business built on the Salesforce platform. It allows brokers to manage their properties and customers to find their dream house.
 
-## Table of contents
-
-* [Installation instructions](#installation-instructions)
-    * [Installing DreamHouse using Salesforce DX](#installing-dreamhouse-using-salesforce-dx)
-    * [Installing DreamHouse using an unlocked package](#installing-dreamhouse-using-an-unlocked-package)
-* [Code highlights](#code-highlights)
-* [Additional resources](#additional-resources)
-
 ## Installation Instructions
 
 There are two ways to install DreamHouse:
@@ -67,6 +59,15 @@ This is the recommended option for non developers. Use this option if you want t
 1. Select **DreamHouse** in the App Launcher.
 
 1. Click the **Data Import** tab and click **Initialize Sample Data**.
+
+### GitLab CI
+
+To use GitLab CI, set the following environment variables:
+
+- `PACKAGE_NAME`: `Dreamhouse`
+- `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key.
+- `SF_USERNAME`: Your username
+- `SF_CONSUMER_KEY`: The consumer key for the app, from the UI
 
 ## Code highlights
 
