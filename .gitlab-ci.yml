@@ -35,6 +35,13 @@ stages:
  - integration-testing
  - app-deploy
 
+.scratch-org-create:
+  - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+  - sfdx force:org:create --targetdevhubusername HubOrg --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
+  - export SCRATCH_ORG_USERNAME="$(eval sfdx force:user:display --targetusername $SCRATCH_ORG_ALIAS --json | jq -r '.result.username')"
+  - echo "$SCRATCH_ORG_USERNAME" > ./SCRATCH_ORG_USERNAME.TXT
+
+
 #
 # Create Scratch Org for code testing -- Stage 1
 #
@@ -44,7 +51,7 @@ code-testing:
     variables:
       - $SCRATCH_ORG_DISABLED
   script:
-
+    <<
     # Authenticate to the Dev Hub using the server key
     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
 
