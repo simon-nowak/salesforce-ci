@@ -1,7 +1,7 @@
 #
 # GitLab CI/CD Pipeline for deploying Dreamhouse App on Salesforce DX
 #
-before_script:
+.leagcy-before_script:
   # Decrypt server key
   - openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
 
@@ -38,7 +38,7 @@ stages:
 #
 # Create Scratch Org for code testing -- Stage 1
 #
-code-testing:
+.legacy-code-testing:
   stage: code-testing
   except:
     variables:
@@ -70,7 +70,7 @@ code-testing:
 #
 # Create a Scratch Org, create a package/artifact and push into org for testing
 #
-integration-testing:
+.leagcy-integration-testing:
   except:
     variables:
       - $SCRATCH_ORG_DISABLED
@@ -119,7 +119,7 @@ integration-testing:
 
 # Delete the scratch org to keep everything clean
 
-Delete Scratch Org:
+.leagacy-Delete Scratch Org:
   except:
     variables:
       - $SCRATCH_ORG_DISABLED
@@ -133,7 +133,7 @@ Delete Scratch Org:
 #
 # Promote the package to downstream environment for UAT for example
 #
-Deploy to Production:
+.leagcy-Deploy to Production:
   stage: app-deploy
   when: manual
   only: ['master']

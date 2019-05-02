@@ -14,13 +14,38 @@ To use GitLab CI, set the following environment variables:
 - `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key.
 - `SF_USERNAME`: Your username
 - `SF_CONSUMER_KEY`: The consumer key for the app, from the UI
-
+- `DEPLOY_SCRATCH_ON_EVERY_COMMIT`: "true" to deploy a scratch org on every commit in an MR, otherwise it won't.
 
 ### Some notes
 
 - Expects `secure.key.enc` to be at the root, not in an `assets` directory.
 - No support for a `JWT` directory within the project - more securely, use `~/.jwt` to keep certificates and the like.
 
+
+### Intended behavior
+
+- On master commits:
+    - Run unit tests
+    - Deploy to scratch org
+    - Run integration tests
+    - Wait for manual approval of scratch org
+    - Delete scratch org (need to remember username)
+    - Package (does this need to happen previously?)
+    - Deploy to staging sandbox
+    - Wait for approval on staging sandbox (is this necessary?)
+    - Deploy to production org
+- On MR commits:
+    - Run unit tests
+    - If $DEPLOY_SCRATCH_ON_EVERY_COMMIT is trueish (need to find out best practice for this):
+        - Deploy to scratch org
+        - Run integration tests
+        - Wait for manual approval of scratch org
+        - Delete scratch org (need to remember username)
+
+Options in commit message (ignored outside of MRs)
+
+- `[deploy scratch]` - Deploys to scratch org on the commit even if $DEPLOY_SCRATCH_ON_EVERY_COMMIT is falseish
+- `[skip deploy scratch]` - Skips the scratch deployment on the commit even if $DEPLOY_SCRATCH_ON_EVERY_COMMIT is trueish
 
 
 ## Legacy README content
