@@ -1,6 +1,29 @@
-# DreamHouse Aura Sample Application for Salesforce
+# GitLab CI/CD for Salesforce
 
-This is the GitLab version of the Aura version of the [Dreamhouse sample application](http://www.dreamhouseapp.io/) from Salesforce.com.
+This is the project where we are developing the GItLab CI/CD template for Salesforce/Apex applications.
+
+It's based on the Aura version of the [Dreamhouse sample application](http://www.dreamhouseapp.io/) from Salesforce.com.
+
+
+
+### GitLab CI
+
+To use GitLab CI, set the following environment variables:
+
+- `PACKAGE_NAME`: `Dreamhouse`
+- `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key.
+- `SF_USERNAME`: Your username
+- `SF_CONSUMER_KEY`: The consumer key for the app, from the UI
+
+
+### Some notes
+
+- Expects `secure.key.enc` to be at the root, not in an `assets` directory.
+- No support for a `JWT` directory within the project - more securely, use `~/.jwt` to keep certificates and the like.
+
+
+
+## Legacy README content
 
 Dreamhouse is a sample application for the real estate business built on the Salesforce platform. It allows brokers to manage their properties and customers to find their dream house.
 
@@ -59,15 +82,6 @@ This is the recommended option for non developers. Use this option if you want t
 1. Select **DreamHouse** in the App Launcher.
 
 1. Click the **Data Import** tab and click **Initialize Sample Data**.
-
-### GitLab CI
-
-To use GitLab CI, set the following environment variables:
-
-- `PACKAGE_NAME`: `Dreamhouse`
-- `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key.
-- `SF_USERNAME`: Your username
-- `SF_CONSUMER_KEY`: The consumer key for the app, from the UI
 
 ## Code highlights
 
@@ -145,10 +159,3 @@ DreamHouse has many more features not discussed here. For example, DreamHouse al
 Head over to [dreamhouseapp.io](http://dreamhouseapp.io) to learn more.
 
 The [original version](https://github.com/dreamhouseapp/dreamhouse-sfdx) of this project lives on another Git hosting service.
-
-## Notes on differences
-
-This version is slightly different from the Trailhead version. Notably:
-
-- Expects `secure.key.enc` to be at the root, not in an `assets` directory.
-- No support for a `JWT` directory within the project - more securely, use `~/.jwt` to keep certificates and the like.
