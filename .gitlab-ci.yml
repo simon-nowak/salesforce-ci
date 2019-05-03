@@ -1,3 +1,52 @@
+
+
+stages:
+ - unit-tests
+ - deploy-scratch
+ - delete-scratch
+ - deploy-sandbox
+ - deploy-production
+
+Run Unit Tests:
+  stage: unit-tests
+  script: ['Run Unit Tests']
+
+Deploy Scratch Org:
+  stage: deploy-scratch
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
+  script: ['Deploy Scratch Org']
+
+Delete Scratch Org:
+  stage: delete-scratch
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
+  when: manual
+  script: ['Delete Scratch Org']
+
+
+# TODO: test this with tags instead of a branch
+
+Deploy to Sandbox:
+  stage: deploy-sandbox
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+  script: ['Deploy to Sandbox']
+
+
+Deploy to Production:
+  stage: deploy-production
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+  when: manual
+  script: ['Deploy to Production']
+
 #
 # GitLab CI/CD Pipeline for deploying Dreamhouse App on Salesforce DX
 #
@@ -29,11 +78,6 @@
   # Output CLI version and plug-in information
   - sfdx --version
   - sfdx plugins --core
-
-stages:
- - code-testing
- - integration-testing
- - app-deploy
 
 #
 # Create Scratch Org for code testing -- Stage 1
