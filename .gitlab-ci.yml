@@ -17,7 +17,7 @@ Deploy Scratch Org:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
       - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
-  script: ['false']
+  script: ['true']
 
 Delete Scratch Org:
   stage: delete-scratch
@@ -26,7 +26,7 @@ Delete Scratch Org:
       - $CI_COMMIT_REF_NAME == 'master'
       - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   when: manual
-  script: ['false']
+  script: ['true']
 
 
 # TODO: test this with tags instead of a branch
@@ -39,7 +39,7 @@ Deploy to Sandbox:
   environment:
     name: sandbox
     url: https://sandbox.$SFDC_BASE_DOMAIN.salesforce.com
-  script: ['false']
+  script: ['true']
 
 
 Deploy to Production:
@@ -51,7 +51,7 @@ Deploy to Production:
   environment:
     name: sandbox
     url: https://$SFDC_BASE_DOMAIN.salesforce.com
-  script: ['false']
+  script: ['true']
 
 #
 # GitLab CI/CD Pipeline for deploying Dreamhouse App on Salesforce DX
