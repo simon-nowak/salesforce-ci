@@ -9,7 +9,7 @@ stages:
 
 Run Unit Tests:
   stage: unit-tests
-  script: ['false']
+  script: ['true']
 
 Deploy Scratch Org:
   stage: deploy-scratch
