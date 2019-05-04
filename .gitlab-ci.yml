@@ -36,6 +36,9 @@ Deploy to Sandbox:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
+  environment:
+    name: sandbox
+    url: https://sandbox.$SFDC_BASE_DOMAIN.salesforce.com
   script: ['false']
 
 
@@ -45,6 +48,9 @@ Deploy to Production:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
   when: manual
+  environment:
+    name: sandbox
+    url: https://$SFDC_BASE_DOMAIN.salesforce.com
   script: ['false']
 
 #
