@@ -226,6 +226,11 @@ Deploy to Production:
   sfdx plugins --core
 
 
+  # Authenticate using JWT
+
+  sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+
+
   # Function to check whether there are daily scratch orgs left
 
   check_daily_scratch_orgs () {
