@@ -17,7 +17,8 @@ Deploy Scratch Org:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
       - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
-  script: ['false']
+  script:
+    - if ! check_daily_scratch_orgs $SF_USERNAME; then exit 1; fi
 
 Delete Scratch Org:
   stage: delete-scratch
@@ -184,3 +185,56 @@ Deploy to Production:
   script:
     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
     - sfdx force:package:install --package "`cat PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername HubOrg --noprompt
+
+
+.sfdx_helpers: &sfdx_helpers |
+
+  # Decrypt server key
+  openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
+
+  # Install jq
+  apt update && apt -y install jq
+
+  # Setup SFDX environment variables
+  export CLIURL=https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+  export SFDX_AUTOUPDATE_DISABLE=false
+  export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
+  export SFDX_DOMAIN_RETRY=300
+  export SFDX_DISABLE_APP_HUB=true
+  export SFDX_LOG_LEVEL=DEBUG
+  export ROOTDIR=force-app/main/default/
+  export TESTLEVEL=RunLocalTests
+  export PACKAGEVERSION=""
+
+  # TODO: Remove this!
+  export SCRATCH_ORG_ALIAS=Dreamhouse_Scratch
+
+  # Install Salesforce CLI
+  mkdir sfdx
+  wget -qO- $CLIURL | tar xJ -C sfdx --strip-components 1
+  "./sfdx/install"
+  export PATH=./sfdx/$(pwd):$PATH
+
+  # Output CLI version and plug-in information
+  sfdx --version
+  sfdx plugins --core
+
+
+  # Function to check whether there are daily scratch orgs left
+
+  check_daily_scratch_orgs () {
+    local limits=`sfdx force:limits:api:display -u $1 --json`
+    local dso=`jq '.result[] | select(.name == "DailyScratchOrgs")' <<< $limits`
+    local dsomax=`jq '.max' <<< $dso`
+    local dsorem=`jq '.remaining' <<< $dso`
+    if [ $dsorem -le 0 ]; then
+      echo "ERROR: Limit of $dsomax Daily Scratch Orgs reached"
+    else
+      echo "$dsorem of $dsomax Daily Scratch Orgs previously created - OK to proceed"
+    fi
+    return $(( $dsorem <= 0 ))
+  }
+
+
+before_script:
+  - *sfdx_helpers
