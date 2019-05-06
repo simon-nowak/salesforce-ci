@@ -51,6 +51,7 @@ Deploy to Production:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
   when: manual
+  allow_failure: false
   environment:
     name: production
     url: https://$SFDC_BASE_DOMAIN.salesforce.com
@@ -237,7 +238,7 @@ Deploy to Production:
   # Install a package version -- pass targetusername as argument -- assumes package ID is stored
 
   install_package_version () {
-    sfdx force:package:install --package "`cat PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername $1 --noprompt
+    sfdx force:package:install --package "`cat SUBSCRIBER_PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername $1 --noprompt
   }
 
 
