@@ -18,6 +18,7 @@ Deploy Scratch Org:
       - $CI_COMMIT_REF_NAME == 'master'
       - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   script:
+    - setup_sfdx
     - if ! check_daily_scratch_orgs $SF_USERNAME; then exit 1; fi
 
 Delete Scratch Org:
@@ -54,37 +55,6 @@ Deploy to Production:
     url: https://$SFDC_BASE_DOMAIN.salesforce.com
   script: ['true']
 
-#
-# GitLab CI/CD Pipeline for deploying Dreamhouse App on Salesforce DX
-#
-.leagcy-before_script:
-  # Decrypt server key
-  - openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
-
-  # Install jq
-  - apt update && apt -y install jq
-
-  # Setup SFDX environment variables
-  - export CLIURL=https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
-  - export SFDX_AUTOUPDATE_DISABLE=false
-  - export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
-  - export SFDX_DOMAIN_RETRY=300
-  - export SFDX_DISABLE_APP_HUB=true
-  - export SFDX_LOG_LEVEL=DEBUG
-  - export ROOTDIR=force-app/main/default/
-  - export TESTLEVEL=RunLocalTests
-  - export SCRATCH_ORG_ALIAS=Dreamhouse_Scratch
-  - export PACKAGEVERSION=""
-
-  # Install Salesforce CLI
-  - mkdir sfdx
-  - wget -qO- $CLIURL | tar xJ -C sfdx --strip-components 1
-  - "./sfdx/install"
-  - export PATH=./sfdx/$(pwd):$PATH
-
-  # Output CLI version and plug-in information
-  - sfdx --version
-  - sfdx plugins --core
 
 #
 # Create Scratch Org for code testing -- Stage 1
@@ -195,40 +165,44 @@ Deploy to Production:
 
 .sfdx_helpers: &sfdx_helpers |
 
-  # Decrypt server key
-  openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
 
-  # Install jq
-  apt update && apt -y install jq
+  # Always call setup_sfdx first
 
-  # Setup SFDX environment variables
-  export CLIURL=https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
-  export SFDX_AUTOUPDATE_DISABLE=false
-  export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
-  export SFDX_DOMAIN_RETRY=300
-  export SFDX_DISABLE_APP_HUB=true
-  export SFDX_LOG_LEVEL=DEBUG
-  export ROOTDIR=force-app/main/default/
-  export TESTLEVEL=RunLocalTests
-  export PACKAGEVERSION=""
+  setup_sfdx () {
 
-  # TODO: Remove this!
-  export SCRATCH_ORG_ALIAS=Dreamhouse_Scratch
+    # Decrypt server key
+    openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
 
-  # Install Salesforce CLI
-  mkdir sfdx
-  wget -qO- $CLIURL | tar xJ -C sfdx --strip-components 1
-  "./sfdx/install"
-  export PATH=./sfdx/$(pwd):$PATH
+    # Install jq
+    apt update && apt -y install jq
 
-  # Output CLI version and plug-in information
-  sfdx --version
-  sfdx plugins --core
+    # Setup SFDX environment variables
+    export CLIURL=https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
+    export SFDX_AUTOUPDATE_DISABLE=false
+    export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
+    export SFDX_DOMAIN_RETRY=300
+    export SFDX_DISABLE_APP_HUB=true
+    export SFDX_LOG_LEVEL=DEBUG
+    export ROOTDIR=force-app/main/default/
+    export TESTLEVEL=RunLocalTests
+    export PACKAGEVERSION=""
 
+    # TODO: Remove this!
+    export SCRATCH_ORG_ALIAS=Dreamhouse_Scratch
 
-  # Authenticate using JWT
+    # Install Salesforce CLI
+    mkdir sfdx
+    wget -qO- $CLIURL | tar xJ -C sfdx --strip-components 1
+    "./sfdx/install"
+    export PATH=./sfdx/$(pwd):$PATH
 
-  sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+    # Output CLI version and plug-in information
+    sfdx --version
+    sfdx plugins --core
+
+    # Authenticate using JWT
+    sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+  }
 
 
   # Function to check whether there are daily scratch orgs left
