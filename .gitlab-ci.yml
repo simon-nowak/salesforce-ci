@@ -51,9 +51,11 @@ Deploy to Production:
       - $CI_COMMIT_REF_NAME == 'master'
   when: manual
   environment:
-    name: sandbox
+    name: production
     url: https://$SFDC_BASE_DOMAIN.salesforce.com
-  script: ['true']
+  script:
+    - setup_sfdx
+    - build_package_version
 
 
 #
@@ -218,6 +220,14 @@ Deploy to Production:
       echo "$dsorem of $dsomax Daily Scratch Orgs previously created - OK to proceed"
     fi
     return $(( $dsorem <= 0 ))
+  }
+
+
+  # Function to build a package version
+
+  build_package_version () {
+    local output=$(sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
+    echo $output
   }
 
 
