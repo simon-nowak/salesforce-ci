@@ -10,11 +10,18 @@ It's based on the Aura version of the [Dreamhouse sample application](http://www
 
 To use GitLab CI, set the following environment variables:
 
-- `PACKAGE_NAME`: `Dreamhouse`
+- `PACKAGE_NAME`: `Dreamhouse` **<-- Need to change this**
 - `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key.
 - `SF_USERNAME`: Your username
 - `SF_CONSUMER_KEY`: The consumer key for the app, from the UI
 - `DEPLOY_SCRATCH_ON_EVERY_COMMIT`: "true" to deploy a scratch org on every commit in an MR, otherwise it won't.
+
+Optionally, disable entire jobs with the following variables:
+
+- `TEST_DISABLED`
+- `SCRATCH_DISABLED`
+- `SANDBOX_DISABLED`
+- `PRODUCTION_DISABLED`
 
 ### Some notes
 
