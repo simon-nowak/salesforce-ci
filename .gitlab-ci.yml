@@ -104,9 +104,6 @@ Deploy to Production:
     export TESTLEVEL=RunLocalTests
     export PACKAGEVERSION=""
 
-    # TODO: Remove this!
-    export SCRATCH_ORG_ALIAS=Dreamhouse_Scratch
-
     # Install Salesforce CLI
     mkdir sfdx
     wget -qO- $CLIURL | tar xJ -C sfdx --strip-components 1
@@ -155,6 +152,7 @@ Deploy to Production:
 
 
   # Populate the URL artifact with HTML to redirect to an environment
+  # TODO: Make this work for scratch orgs too
   # - Pass targetusername as argument
 
   populate_url_artifact() {
@@ -162,6 +160,21 @@ Deploy to Production:
     local html='<script>window.onload=function(){window.location.href="$url"}</script>'
     echo "$html" > ENVIRONMENT.html
   }
+
+
+  # Create a scratch org
+  # - Pass targetusername (HubOrg) as argument
+  # - Assumes there is a config/project-scratch-def.json file
+  # TODO: Remember scratch org username for the branch
+
+  create_scratch_org() {
+    local output=$(sfdx force:org:create --targetdevhubusername $1 --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1)
+    local scratch_org_username="$(jq -r '.result.username' << $output)"
+    echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
+  }
+
+
+
 
 before_script:
   - *sfdx_helpers
