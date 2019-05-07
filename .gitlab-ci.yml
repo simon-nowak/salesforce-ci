@@ -51,7 +51,7 @@ Deploy to Sandbox:
   except:
     variables:
       - $SANDBOX_DISABLED
-environment:
+  environment:
     name: sandbox
     #url: https://sandbox.$SFDC_BASE_DOMAIN.salesforce.com
   script: ['true']
