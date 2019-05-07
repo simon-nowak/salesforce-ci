@@ -76,7 +76,7 @@ Deploy to Production:
     - install_package_version HubOrg
     - populate_url_artifact HubOrg
   artifacts:
-    path:
+    paths:
       - ENVIRONMENT.html
 
 
