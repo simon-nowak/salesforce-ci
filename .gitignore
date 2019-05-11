@@ -11,3 +11,5 @@ IlluminatedCloud/
 JWT/
 .todo*
 delete_me.*
+assets/server.key
+bin/test.sh
