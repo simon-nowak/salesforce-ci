@@ -7,11 +7,11 @@ It's based on the Aura version of the [Dreamhouse sample application](http://www
 
 To use GitLab CI, set the following environment variables:
 
-- `PACKAGE_NAME`: Required. Must match one of the `package` entries in `sfdx-project.json`
+- `DEPLOY_SCRATCH_ON_EVERY_COMMIT`: "true" to deploy a scratch org on every commit in an MR, otherwise it won't.
+- `PACKAGE_NAME`: Optional. Must match one of the `package` entries in `sfdx-project.json`. If not present, then we'll pull the default package from `sfdx-project.json`.
 - `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key.
 - `SF_USERNAME`: Your username
 - `SF_CONSUMER_KEY`: The consumer key for the app, from the UI
-- `DEPLOY_SCRATCH_ON_EVERY_COMMIT`: "true" to deploy a scratch org on every commit in an MR, otherwise it won't.
 
 Optionally, disable entire jobs with the following variables:
 
@@ -24,6 +24,7 @@ Optionally, disable entire jobs with the following variables:
 
 - Expects `secure.key.enc` to be at the root, not in an `assets` directory.
 - No support for a `JWT` directory within the project - more securely, use `~/.jwt` to keep certificates and the like.
+- Your `sfdx-project.json` file must be complete, including project IDs, in order for package version creation to work.
 
 ### Intended behavior
 
