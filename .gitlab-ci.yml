@@ -123,10 +123,14 @@ Deploy to Production:
   # Function to get package name and ID
 
   get_package_name_and_id () {
-    export package_name=$(cat sfdx-project.json | jq -r '.packageDirectories[] | select(.default==true) | .package')
+    export package_name=$PACKAGE_NAME
+    if [ ! $package_name ]; then
+      export package_name=$(cat sfdx-project.json | jq -r '.packageDirectories[] | select(.default==true) | .package')
+    fi
     if [ ! $package_name ]; then
       export package_name=$(cat sfdx-project.json | jq -r '.packageDirectories | .[0] | .package')
     fi
+    sfdx force:package:list --json
     export package_id=$(sfdx force:package:list --json | jq '.result[] | select(.Name=="$package_name") | .Id')
     echo "Package name is $package_name"
     echo "Package ID is $package_id"
@@ -152,7 +156,7 @@ Deploy to Production:
   # Function to build a package version
 
   build_package_version () {
-    local output=$(sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
+    local output=$(sfdx force:package:version:create --package $package_name --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
     if [ ! $output ]; then exit 1; fi
     local subscriber_package_version_id=$(jq ".result.SubscriberPackageVersionId" -r <<< $output)
     echo "$subscriber_package_version_id" > SUBSCRIBER_PACKAGE_VERSION_ID.TXT
