@@ -72,7 +72,7 @@ Deploy to Production:
     #url: https://$SFDC_BASE_DOMAIN.salesforce.com
   script:
     - setup_sfdx
-    - build_package_version
+    - build_package_version &&
     - install_package_version HubOrg
     - populate_url_artifact HubOrg
   artifacts:
@@ -139,9 +139,6 @@ Deploy to Production:
 
   build_package_version () {
     local output=$(sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
-    echo $output
-    echo $(jq -r ".name" <<< $output)
-    if [ $(jq -r ".name" <<< $output) == "Error" ]; then exit 1; fi
     local subscriber_package_version_id=$(jq ".result.SubscriberPackageVersionId" -r <<< $output)
     echo "$subscriber_package_version_id" > SUBSCRIBER_PACKAGE_VERSION_ID.TXT
   }
