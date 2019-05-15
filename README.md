@@ -25,7 +25,6 @@ Optionally, disable entire jobs with the following variables:
 - Expects `secure.key.enc` to be at the root, not in an `assets` directory.
 - No support for a `JWT` directory within the project - more securely, use `~/.jwt` to keep certificates and the like.
 
-
 ### Intended behavior
 
 - On master commits:
