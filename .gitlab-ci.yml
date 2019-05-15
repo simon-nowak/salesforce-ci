@@ -131,7 +131,7 @@ Deploy to Production:
       export package_name=$(cat sfdx-project.json | jq -r '.packageDirectories | .[0] | .package')
     fi
     sfdx force:package:list --json
-    export package_id=$(sfdx force:package:list --json | jq '.result[] | select(.Name=="$package_name") | .Id')
+    export package_id=$(sfdx force:package:list --json | jq '.result[] | select(.Name==env.package_name) | .Id')
     echo "Package name is $package_name"
     echo "Package ID is $package_id"
   }
