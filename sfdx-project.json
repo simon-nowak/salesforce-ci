@@ -11,7 +11,4 @@
     "namespace": "",
     "sfdcLoginUrl": "https://login.salesforce.com",
     "sourceApiVersion": "45.0",
-    "packageAliases": {
-        "gitlabtest": "0Ho1U0000004CKaSAM"
-    }
 }
