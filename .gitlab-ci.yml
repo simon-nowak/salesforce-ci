@@ -72,6 +72,7 @@ Deploy to Production:
     #url: https://$SFDC_BASE_DOMAIN.salesforce.com
   script:
     - setup_sfdx
+    - get_package_name_and_id
     - build_package_version
     - install_package_version HubOrg
     - populate_url_artifact HubOrg
@@ -116,6 +117,19 @@ Deploy to Production:
 
     # Authenticate using JWT
     sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+  }
+
+
+  # Function to get package name and ID
+
+  get_package_name_and_id () {
+    export package_name=$(cat sfdx-project.json | jq -r '.packageDirectories[] | select(.default==true) | .package')
+    if [ ! $package_name ]; then
+      export package_name=$(cat sfdx-project.json | jq -r '.packageDirectories | .[0] | .package')
+    fi
+    export package_id=$(sfdx force:package:list --json | jq '.result[] | select(.Name=="$package_name") | .Id')
+    echo "Package name is $package_name"
+    echo "Package ID is $package_id"
   }
 
 
