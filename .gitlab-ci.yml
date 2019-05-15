@@ -138,11 +138,8 @@ Deploy to Production:
   # Function to build a package version
 
   build_package_version () {
-    echo "Starting..."
     local output=$(sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
-    echo "Next..."
-    echo $output
-    echo "There"
+    if [ ! $output ]; then exit 1; fi
     local subscriber_package_version_id=$(jq ".result.SubscriberPackageVersionId" -r <<< $output)
     echo "$subscriber_package_version_id" > SUBSCRIBER_PACKAGE_VERSION_ID.TXT
   }
@@ -151,7 +148,6 @@ Deploy to Production:
   # Install a package version -- pass targetusername as argument -- assumes package ID is stored
 
   install_package_version () {
-    echo "Starting again..."
     sfdx force:package:install --package "`cat SUBSCRIBER_PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername $1 --noprompt
   }
 
