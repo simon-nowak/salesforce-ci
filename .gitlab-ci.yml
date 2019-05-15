@@ -138,8 +138,7 @@ Deploy to Production:
   # Function to build a package version
 
   build_package_version () {
-    # local output=$(sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
-    local output=$(sfdx force:package:version:create --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
+    local output=$(sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
     if [ ! $output ]; then exit 1; fi
     local subscriber_package_version_id=$(jq ".result.SubscriberPackageVersionId" -r <<< $output)
     echo "$subscriber_package_version_id" > SUBSCRIBER_PACKAGE_VERSION_ID.TXT

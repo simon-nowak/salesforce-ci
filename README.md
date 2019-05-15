@@ -7,7 +7,7 @@ It's based on the Aura version of the [Dreamhouse sample application](http://www
 
 To use GitLab CI, set the following environment variables:
 
-- `PACKAGE_NAME`: `Dreamhouse` **<-- ???**
+- `PACKAGE_NAME`: Required. Must match one of the `package` entries in `sfdx-project.json`
 - `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key.
 - `SF_USERNAME`: Your username
 - `SF_CONSUMER_KEY`: The consumer key for the app, from the UI
