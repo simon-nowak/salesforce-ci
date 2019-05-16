@@ -19,6 +19,10 @@ Deploy Scratch Org:
     - setup_sfdx
     - if ! check_daily_scratch_orgs $SF_USERNAME; then exit 1; fi
     - create_scratch_org
+  artifacts:
+    paths:
+      - SCRATCH_ORG_USERNAME.html
+
 
 Delete Scratch Org:
   stage: delete-scratch
@@ -51,8 +55,8 @@ Deploy to Sandbox:
     - setup_sfdx
     - get_package_name_and_id
     - build_package_version
-    - install_package_version HubOrg
-    - populate_url_artifact HubOrg
+    - install_package_version HUB_ORG_ALIAS
+    - populate_url_artifact HUB_ORG_ALIAS
 
 
 
@@ -73,8 +77,8 @@ Deploy to Production:
     - setup_sfdx
     - get_package_name_and_id
     - build_package_version
-    - install_package_version HubOrg
-    - populate_url_artifact HubOrg
+    - install_package_version HUB_ORG_ALIAS
+    - populate_url_artifact HUB_ORG_ALIAS
   artifacts:
     paths:
       - ENVIRONMENT.html
@@ -115,7 +119,7 @@ Deploy to Production:
     sfdx plugins --core
 
     # Authenticate using JWT
-    sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+    sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
   }
 
 
@@ -153,7 +157,7 @@ Deploy to Production:
   # Function to build a package version
 
   build_package_version () {
-    local output=$(sfdx force:package:version:create --package $package_name --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg)
+    local output=$(sfdx force:package:version:create --package $package_name --installationkeybypass --wait 10 --json --targetdevhubusername HUB_ORG_ALIAS)
     if [ ! $output ]; then exit 1; fi
     local subscriber_package_version_id=$(jq ".result.SubscriberPackageVersionId" -r <<< $output)
     echo "$subscriber_package_version_id" > SUBSCRIBER_PACKAGE_VERSION_ID.TXT
@@ -179,12 +183,12 @@ Deploy to Production:
 
 
   # Create a scratch org
-  # - Pass targetusername (HubOrg) as argument
+  # - Pass targetusername (HUB_ORG_ALIAS) as argument
   # - Assumes there is a config/project-scratch-def.json file
   # TODO: Remember scratch org username for the branch
 
   create_scratch_org() {
-    local output=$(sfdx force:org:create --targetdevhubusername $1 --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1)
+    local output=$(sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1)
     local scratch_org_username="$(jq -r '.result.username' << $output)"
     echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
   }
@@ -210,10 +214,10 @@ before_script:
   script:
 
     # Authenticate to the Dev Hub using the server key
-    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
 
     # Create scratch org
-    - sfdx force:org:create --targetdevhubusername HubOrg --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
+    - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
     - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
 
     # Push source to scratch org (This is with source code, all files, etc)
@@ -246,13 +250,13 @@ before_script:
   script:
 
     # Authenticate to the Dev Hub using the server key
-    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
+    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
 
     ## Create scratch org
-    - sfdx force:org:create --targetdevhubusername HubOrg --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
+    - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
     - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
     ## Create packaged version
-    - export PACKAGE_VERSION_ID="$(eval sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HubOrg | jq '.result.SubscriberPackageVersionId' | tr -d '"')"
+    - export PACKAGE_VERSION_ID="$(eval sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HUB_ORG_ALIAS | jq '.result.SubscriberPackageVersionId' | tr -d '"')"
     ## Save your PACKAGE_VERSION_ID to a file for later use during deploy so we know what version to deploy
     - echo "$PACKAGE_VERSION_ID" > PACKAGE_VERSION_ID.TXT
 
@@ -290,8 +294,8 @@ before_script:
   stage: app-deploy
   when: manual
   script:
-    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
-    - sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HubOrg --where "SignupUsername='`cat ./SCRATCH_ORG_USERNAME.TXT`'"
+    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+    - sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HUB_ORG_ALIAS --where "SignupUsername='`cat ./SCRATCH_ORG_USERNAME.TXT`'"
 
 
 #
@@ -302,5 +306,5 @@ before_script:
   when: manual
   only: ['master']
   script:
-    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HubOrg
-    - sfdx force:package:install --package "`cat PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername HubOrg --noprompt
+    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+    - sfdx force:package:install --package "`cat PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername HUB_ORG_ALIAS --noprompt
