@@ -19,6 +19,8 @@ Deploy Scratch Org:
     - setup_sfdx
     - if ! check_daily_scratch_orgs $SF_USERNAME; then exit 1; fi
     - create_scratch_org
+    - push_to_scratch_org_and_test
+    - echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
   artifacts:
     paths:
       - SCRATCH_ORG_USERNAME.txt
@@ -35,7 +37,10 @@ Delete Scratch Org:
       - $SCRATCH_DISABLED
   when: manual
   allow_failure: false
-  script: ['true']
+  dependencies:
+    - Deploy Scratch Org
+  script:
+    - delete_scratch_org "`cat SCRATCH_ORG_USERNAME.txt`"
 
 
 # TODO: test this with tags instead of a branch
@@ -185,15 +190,34 @@ Deploy to Production:
   # Create a scratch org
   # - Pass targetusername (HUB_ORG_ALIAS) as argument
   # - Assumes there is a config/project-scratch-def.json file
+  # - Sets $scratch_org_username
   # TODO: Remember scratch org username for the branch
 
   create_scratch_org() {
     local output=$(sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
-    local scratch_org_username="$(jq -r '.result.username' <<< $output)"
-    echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
+    export scratch_org_username="$(jq -r '.result.username' <<< $output)"
   }
 
 
+  # Push to scratch org
+  # Assumes username is available in SCRATCH_ORG_USERNAME.txt
+
+  push_to_scratch_org_and_test () {
+    if [ ! $scratch_org_username ]; then exit 1; fi
+    sfdx force:source:push --targetusername $scratch_org_username
+    #sfdx force:user:permset:assign --targetusername `cat SCRATCH_ORG_USERNAME.txt` --permsetname ______
+    #sfdx force:data:tree:import --plan data/sample-data-plan.json
+    #sfdx force:apex:test:run --targetusername $scratch_org_username --wait 10 --resultformat human --codecoverage --testlevel _________
+  }
+
+
+  # Delete a scratch org
+  # Pass in the scratch_org_username
+
+  delete_scratch_org () {
+    if [ ! $1 ]; then exit 1; fi
+    sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HUB_ORG_ALIAS --where "SignupUsername='$1'"
+  }
 
 
 before_script:
