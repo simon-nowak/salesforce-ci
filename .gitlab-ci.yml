@@ -22,6 +22,7 @@ Deploy Scratch Org:
     - push_to_scratch_org_and_test
     - echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
     - populate_url_artifact "$scratch_org_username"
+    - echo "$environment_html"
     - echo "$environment_html" > ENVIRONMENT.html
   artifacts:
     paths:
@@ -190,6 +191,7 @@ Deploy to Production:
 
   populate_url_artifact() {
     local url=$(sfdx force:org:display -u $1 --json | jq -r ".result.instanceUrl")
+    echo $url
     environment_html='<script>window.onload=function(){window.location.href="$url"}</script>'
   }
 
