@@ -21,7 +21,7 @@ Deploy Scratch Org:
     - create_scratch_org
   artifacts:
     paths:
-      - SCRATCH_ORG_USERNAME.html
+      - SCRATCH_ORG_USERNAME.txt
 
 
 Delete Scratch Org:
@@ -189,7 +189,7 @@ Deploy to Production:
 
   create_scratch_org() {
     local output=$(sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1)
-    local scratch_org_username="$(jq -r '.result.username' << $output)"
+    local scratch_org_username="$(jq -r '.result.username' <<< $output)"
     echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
   }
 
