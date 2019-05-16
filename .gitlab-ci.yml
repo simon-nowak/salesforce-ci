@@ -43,6 +43,7 @@ Delete Scratch Org:
   dependencies:
     - Deploy Scratch Org
   script:
+    - setup_sfdx
     - delete_scratch_org "`cat SCRATCH_ORG_USERNAME.txt`"
 
 
