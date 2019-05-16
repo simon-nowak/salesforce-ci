@@ -26,6 +26,7 @@ Deploy Scratch Org:
   script:
     - setup_sfdx
     - if ! check_daily_scratch_orgs $SF_USERNAME; then exit 1; fi
+    - create_scratch_org
 
 Delete Scratch Org:
   stage: delete-scratch
@@ -60,7 +61,7 @@ Deploy to Sandbox:
     - build_package_version
     - install_package_version HubOrg
     - populate_url_artifact HubOrg
-    
+
 
 
 Deploy to Production:
