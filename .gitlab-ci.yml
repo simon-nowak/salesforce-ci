@@ -1,18 +1,10 @@
 
 
 stages:
- - unit-tests
  - deploy-scratch
  - delete-scratch
  - deploy-sandbox
  - deploy-production
-
-Run Unit Tests:
-  stage: unit-tests
-  script: ['true']
-  except:
-    variables:
-      - $TEST_DISABLED
 
 Deploy Scratch Org:
   stage: deploy-scratch
