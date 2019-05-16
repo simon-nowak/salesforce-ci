@@ -1,10 +1,20 @@
 
 
 stages:
+ - delete-this-stage
  - deploy-scratch
  - delete-scratch
  - deploy-sandbox
  - deploy-production
+
+
+Delete this job:
+  stage: delete-this-stage
+  script:
+    - echo $CI_PROJECT_URL
+    - echo $CI_REPOSITORY_URL
+    - echo $CI_PIPELINE_URL
+    - echo $CI_JOB_URL
 
 #Deploy Scratch Org:
 deployscratch:
