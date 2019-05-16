@@ -188,8 +188,7 @@ Deploy to Production:
   # TODO: Remember scratch org username for the branch
 
   create_scratch_org() {
-    local output=$(sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1)
-    echo $output
+    local output=$(sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
     local scratch_org_username="$(jq -r '.result.username' <<< $output)"
     echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
   }
