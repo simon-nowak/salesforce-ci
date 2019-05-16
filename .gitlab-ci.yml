@@ -1,15 +1,10 @@
 
 
 stages:
- - delete-this-stage
  - deploy-scratch
  - delete-scratch
  - deploy-sandbox
  - deploy-production
-
-Delete this job:
-  stage: delete-this-stage
-  script: [':']
 
 Deploy Scratch Org:
   stage: deploy-scratch
