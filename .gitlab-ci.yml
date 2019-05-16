@@ -21,9 +21,12 @@ Deploy Scratch Org:
     - create_scratch_org
     - push_to_scratch_org_and_test
     - echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
+    - populate_url_artifact "$scratch_org_username"
+    - echo "$environment_html" > ENVIRONMENT.html
   artifacts:
     paths:
       - SCRATCH_ORG_USERNAME.txt
+      - ENVIRONMENT.html
 
 
 Delete Scratch Org:
@@ -62,7 +65,10 @@ Deploy to Sandbox:
     - build_package_version
     - install_package_version HUB_ORG_ALIAS
     - populate_url_artifact HUB_ORG_ALIAS
-
+    - echo "$environment_html" > ENVIRONMENT.html
+  artifacts:
+    paths:
+      - ENVIRONMENT.html
 
 
 Deploy to Production:
@@ -84,6 +90,7 @@ Deploy to Production:
     - build_package_version
     - install_package_version HUB_ORG_ALIAS
     - populate_url_artifact HUB_ORG_ALIAS
+    - echo "$environment_html" > ENVIRONMENT.html
   artifacts:
     paths:
       - ENVIRONMENT.html
@@ -182,8 +189,7 @@ Deploy to Production:
 
   populate_url_artifact() {
     local url=$(sfdx force:org:display -u $1 --json | jq -r ".result.instanceUrl")
-    local html='<script>window.onload=function(){window.location.href="$url"}</script>'
-    echo "$html" > ENVIRONMENT.html
+    environment_html='<script>window.onload=function(){window.location.href="$url"}</script>'
   }
 
 
@@ -195,7 +201,7 @@ Deploy to Production:
 
   create_scratch_org() {
     local output=$(sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
-    export scratch_org_username="$(jq -r '.result.username' <<< $output)"
+    scratch_org_username="$(jq -r '.result.username' <<< $output)"
   }
 
 
