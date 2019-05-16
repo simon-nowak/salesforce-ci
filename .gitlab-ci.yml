@@ -6,7 +6,8 @@ stages:
  - deploy-sandbox
  - deploy-production
 
-Deploy Scratch Org:
+#Deploy Scratch Org:
+deployscratch:
   stage: deploy-scratch
   only:
     variables:
