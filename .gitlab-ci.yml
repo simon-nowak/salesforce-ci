@@ -213,6 +213,8 @@ Deploy to Production:
 
   push_to_scratch_org_and_test () {
     if [ ! $scratch_org_username ]; then exit 1; fi
+    echo $scratch_org_username
+    sfdx force:org:display --targetusername "$scratch_org_username"
     sfdx force:source:push --targetusername $scratch_org_username
     #sfdx force:user:permset:assign --targetusername `cat SCRATCH_ORG_USERNAME.txt` --permsetname ______
     #sfdx force:data:tree:import --plan data/sample-data-plan.json
