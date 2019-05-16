@@ -186,12 +186,11 @@ Deploy to Production:
 
 
   # Populate the URL artifact with HTML to redirect to an environment
-  # TODO: Make this work for scratch orgs too
-  # - Pass targetusername as argument
+  # NOTE: This is a tokenized URL and must be kept secret!
+  # Pass targetusername as argument
 
   populate_url_artifact() {
-    local url=$(sfdx force:org:display -u $1 --json | jq -r ".result.instanceUrl")
-    echo $url
+    local url=$(sfdx force:org:open --targetusername $1 -urlonly --json | jq -r ".result.url")
     environment_html="<script>window.onload=function(){window.location.href=\"$url\"}</script>"
   }
 
