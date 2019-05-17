@@ -7,7 +7,7 @@ stages:
  - deploy-production
 
 
-deployscratchorg:
+deploy-scratch-org:
   stage: deploy-scratch
   only:
     variables:
@@ -46,7 +46,7 @@ delete-scratch-org:
   when: manual
   allow_failure: false
   dependencies:
-    - deployscratchorg
+    - deploy-scratch-org
   script:
     - setup_sfdx
     - delete_scratch_org "`cat SCRATCH_ORG_USERNAME.txt`"
@@ -67,7 +67,7 @@ deploy-to-sandbox:
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
   script:
     - setup_sfdx
-    - get_package_name_and_id
+    - get__and_id
     - build_package_version
     - install_package_version HUB_ORG_ALIAS
     - populate_url_artifact HUB_ORG_ALIAS
@@ -92,7 +92,7 @@ deploy-to-production:
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
   script:
     - setup_sfdx
-    - get_package_name_and_id
+    - get__and_id
     - build_package_version
     - install_package_version HUB_ORG_ALIAS
     - populate_url_artifact HUB_ORG_ALIAS
@@ -145,15 +145,14 @@ deploy-to-production:
   # Function to get package name and ID
 
   get_package_name_and_id () {
-    export package_name=$PACKAGE_NAME
+    package_name=$PACKAGE_NAME
     if [ ! $package_name ]; then
-      export package_name=$(cat sfdx-project.json | jq -r '.packageDirectories[] | select(.default==true) | .package')
+      package_name=$(cat sfdx-project.json | jq -r '.packageDirectories[] | select(.default==true) | .package')
     fi
     if [ ! $package_name ]; then
-      export package_name=$(cat sfdx-project.json | jq -r '.packageDirectories | .[0] | .package')
+      package_name=$(cat sfdx-project.json | jq -r '.packageDirectories | .[0] | .package')
     fi
-    sfdx force:package:list --json
-    export package_id=$(sfdx force:package:list --json | jq -r '.result[] | select(.Name==env.package_name) | .Id')
+    package_id=$(sfdx force:package:list --json | jq -r '.result[] | select(.Name==env.package_name) | .Id')
   }
 
 
@@ -197,11 +196,9 @@ deploy-to-production:
   populate_url_artifact() {
     if [ ! $1 ]; then exit 1; fi
     local output=$(sfdx force:org:open --targetusername $1 --urlonly --json)
-    echo $output
     local url=$(jq -r ".result.url" <<< $output)
-    echo $url
     environment_html="<script>window.onload=function(){window.location.href=\"$url\"}</script>"
-    echo $environment_html
+    echo "To browse the scratch org, click 'Browse' under 'Job artifacts' and select 'ENVIRONMENT.html'"
   }
 
 
@@ -300,7 +297,7 @@ before_script:
     - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
     - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
     ## Create packaged version
-    - export PACKAGE_VERSION_ID="$(eval sfdx force:package:version:create --package $PACKAGE_NAME --installationkeybypass --wait 10 --json --targetdevhubusername HUB_ORG_ALIAS | jq '.result.SubscriberPackageVersionId' | tr -d '"')"
+    - export PACKAGE_VERSION_ID="$(eval sfdx force:package:version:create --package $ --installationkeybypass --wait 10 --json --targetdevhubusername HUB_ORG_ALIAS | jq '.result.SubscriberPackageVersionId' | tr -d '"')"
     ## Save your PACKAGE_VERSION_ID to a file for later use during deploy so we know what version to deploy
     - echo "$PACKAGE_VERSION_ID" > PACKAGE_VERSION_ID.TXT
 
