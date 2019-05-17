@@ -7,7 +7,7 @@ stages:
  - deploy-production
 
 
-deploy-scratch-org:
+deployscratchorg:
   stage: deploy-scratch
   only:
     variables:
@@ -46,7 +46,7 @@ delete-scratch-org:
   when: manual
   allow_failure: false
   dependencies:
-    - deploy-scratch-org
+    - deployscratchorg
   script:
     - setup_sfdx
     - delete_scratch_org "`cat SCRATCH_ORG_USERNAME.txt`"
