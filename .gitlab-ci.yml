@@ -197,7 +197,7 @@ deploy-to-production:
   populate_url_artifact() {
     if [ ! $1 ]; then exit 1; fi
     local output=$(sfdx force:org:open --targetusername $1 --urlonly --json)
-    echo output
+    echo $output
     local url=$(jq -r ".result.url" <<< $output)
     echo $url
     environment_html="<script>window.onload=function(){window.location.href=\"$url\"}</script>"
