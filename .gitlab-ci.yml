@@ -122,7 +122,7 @@ deploy-to-production:
     export SFDX_DOMAIN_RETRY=300
     export SFDX_DISABLE_APP_HUB=true
     export SFDX_LOG_LEVEL=DEBUG
-    export ROOTDIR=force-app/main/default/
+    export ROOTDIR=force-app/main/default/ # TODO: Is this right?
     export TESTLEVEL=RunLocalTests
     export PACKAGEVERSION=""
 
@@ -133,6 +133,7 @@ deploy-to-production:
     export PATH=./sfdx/$(pwd):$PATH
 
     # Output CLI version and plug-in information
+    sfdx update
     sfdx --version
     sfdx plugins --core
 
@@ -194,8 +195,13 @@ deploy-to-production:
   # Pass targetusername as argument
 
   populate_url_artifact() {
-    local url=$(sfdx force:org:open --targetusername $1 --urlonly --json | jq -r ".result.url")
+    if [ ! $1 ]; then exit 1; fi
+    local output=$(sfdx force:org:open --targetusername $1 --urlonly --json)
+    echo output
+    local url=$(jq -r ".result.url" <<< $output)
+    echo $url
     environment_html="<script>window.onload=function(){window.location.href=\"$url\"}</script>"
+    echo $environment_html
   }
 
 
