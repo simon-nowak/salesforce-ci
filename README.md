@@ -7,9 +7,9 @@ To use GitLab CI, set the following environment variables:
 - `DEPLOY_SCRATCH_ON_EVERY_COMMIT`: "true" to deploy a scratch org on every commit in an MR, otherwise it won't.
 - `PACKAGE_NAME`: Optional. Must match one of the `package` entries in `sfdx-project.json`. If not present, then we'll pull the default package from `sfdx-project.json`.
 
-- `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key. Note this variable cannot be "Protected" in GitLab if `DEPLOY_SCRATCH_ON_EVERY_COMMIT` is true because it's required for running scratch orgs on branches.
+- `SERVER_KEY_PASSWORD`: This is `Password01` if you followed the instructions provided for generating the server key. Note this variable cannot be "Protected" in GitLab if `DEPLOY_SCRATCH_ON_EVERY_COMMIT` is true because it's required for running scratch orgs on branches. (Key being used for JWT authentication)
 - `SF_USERNAME`: Your username
-- `SF_CONSUMER_KEY`: The consumer key for the app, from the UI
+- `SF_CONSUMER_KEY`: The consumer key for the app, from the UI. It's the same thing as "client id".
 
 Optionally, disable entire jobs with the following variables:
 
