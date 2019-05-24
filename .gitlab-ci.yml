@@ -1,11 +1,24 @@
 
 
 stages:
+ - test
  - deploy-scratch
  - delete-scratch
  - deploy-sandbox
  - deploy-production
 
+test:
+  stage: test
+  except:
+    variables:
+      - $TEST_DISABLED
+  image: node:latest
+  before_script:
+    - npm init
+    - npm install
+    - npm install @salesforce/lwc-jest --save-dev
+  script:
+    - npm run test:unit
 
 deploy-scratch-org:
   stage: deploy-scratch
