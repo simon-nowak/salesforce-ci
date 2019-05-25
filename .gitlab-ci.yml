@@ -18,7 +18,7 @@ test:
     - npm install
     - npm install @salesforce/lwc-jest --save-dev
   script:
-    - npm run test:unit
+    - node ./node_modules/@salesforce/lwc-jest/bin/lwc-jest
 
 deploy-scratch-org:
   stage: deploy-scratch
