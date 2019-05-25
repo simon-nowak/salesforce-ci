@@ -31,12 +31,12 @@ deploy-scratch-org:
       - $SCRATCH_DISABLED
   script:
     - setup_sfdx
-    - if ! check_daily_scratch_orgs $SF_USERNAME; then exit 1; fi
-    - create_scratch_org
+    - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - if ! check_daily_scratch_orgs DEVHUB; then exit 1; fi
+    - create_scratch_org DEVHUB
     - push_to_scratch_org_and_test
     - echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
     - populate_url_artifact "$scratch_org_username"
-    - echo "$environment_html"
     - echo "$environment_html" > ENVIRONMENT.html
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
@@ -80,10 +80,12 @@ deploy-to-sandbox:
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
   script:
     - setup_sfdx
-    - get_package_name_and_id
-    - build_package_version
-    - install_package_version HUB_ORG_ALIAS
-    - populate_url_artifact HUB_ORG_ALIAS
+    - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - get_package_name_and_id DEVHUB
+    - build_package_version DEVHUB
+    - authenticate $SANDBOX_AUTH_URL SANDBOX
+    - install_package_version SANDBOX
+    - populate_url_artifact SANDBOX
     - echo "$environment_html" > ENVIRONMENT.html
   artifacts:
     paths:
@@ -105,10 +107,13 @@ deploy-to-production:
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
   script:
     - setup_sfdx
-    - get_package_name_and_id
-    - build_package_version
-    - install_package_version HUB_ORG_ALIAS
-    - populate_url_artifact HUB_ORG_ALIAS
+    - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - get_package_name_and_id DEVHUB
+    - build_package_version DEVHUB
+    - authenticate $PRODUCTION_AUTH_URL PRODUCTION
+    - promote_package_version PRODUCTION
+    - install_package_version PRODUCTION
+    - populate_url_artifact PRODUCTION
     - echo "$environment_html" > ENVIRONMENT.html
   artifacts:
     paths:
@@ -122,25 +127,44 @@ deploy-to-production:
 
   setup_sfdx () {
 
-    # Decrypt server key
-    openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
+    # Salesforce CLI Environment Variables
+    # https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_cli_env_variables.htm
 
-    # Install jq
-    apt update && apt -y install jq
+    # By default, the CLI periodically checks for and installs updates.
+    # Disable (false) this auto-update check to improve performance of CLI commands.
+    export SFDX_AUTOUPDATE_DISABLE=false
+
+    # Set to true if you want to use the generic UNIX keychain instead of the Linux libsecret library or macOS keychain.
+    # Specify this variable when using the CLI with ssh or "headless" in a CI environment.
+    export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
+
+    # Specifies the time, in seconds, that the CLI waits for the Lightning Experience custom domain to resolve and become available in a newly-created scratch org.
+    # If you get errors about My Domain not configured when you try to use a newly-created scratch org, increase this wait time.
+    export SFDX_DOMAIN_RETRY=300
+
+    # For force:package:create, disables automatic updates to the sfdx-project.json file.
+    export SFDX_PROJECT_AUTOUPDATE_DISABLE_FOR_PACKAGE_CREATE=true
+
+    # For force:package:version:create, disables automatic updates to the sfdx-project.json file.
+    export SFDX_PROJECT_AUTOUPDATE_DISABLE_FOR_PACKAGE_VERSION_CREATE=true
+
+    # Decrypt server key
+    #openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
+
 
     # Setup SFDX environment variables
-    export CLIURL=https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
-    export SFDX_AUTOUPDATE_DISABLE=false
-    export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
-    export SFDX_DOMAIN_RETRY=300
-    export SFDX_DISABLE_APP_HUB=true
-    export SFDX_LOG_LEVEL=DEBUG
-    export ROOTDIR=force-app/main/default/ # TODO: Is this right?
-    export TESTLEVEL=RunLocalTests
-    export PACKAGEVERSION=""
+    # export SFDX_AUTOUPDATE_DISABLE=false
+    # export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
+    # export SFDX_DOMAIN_RETRY=300
+    # export SFDX_DISABLE_APP_HUB=true
+    # export SFDX_LOG_LEVEL=DEBUG
+    # export ROOTDIR=force-app/main/default/ # TODO: Is this right?
+    # export TESTLEVEL=RunLocalTests
+    # export PACKAGEVERSION=""
 
     # Install Salesforce CLI
     mkdir sfdx
+    CLIURL=https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
     wget -qO- $CLIURL | tar xJ -C sfdx --strip-components 1
     "./sfdx/install"
     export PATH=./sfdx/$(pwd):$PATH
@@ -150,12 +174,27 @@ deploy-to-production:
     sfdx --version
     sfdx plugins --core
 
+    # Install jq
+    apt update && apt -y install jq
+
     # Authenticate using JWT
-    sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+    #sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+  }
+
+
+  # Authenticate to Salesforce
+  # First argument is the URL itself, second argument is the alias to be used
+
+  authenticate () {
+    local file=$(mktemp)
+    echo $1 > $file
+    sfdx force:auth:sfdxurl:store --json --sfdxurlfile $file --setalias $2
+    rm $file
   }
 
 
   # Function to get package name and ID
+  # Pass in the dev hub username/alias
 
   get_package_name_and_id () {
     package_name=$PACKAGE_NAME
@@ -165,7 +204,7 @@ deploy-to-production:
     if [ ! $package_name ]; then
       package_name=$(cat sfdx-project.json | jq -r '.packageDirectories | .[0] | .package')
     fi
-    package_id=$(sfdx force:package:list --json | jq -r '.result[] | select(.Name==env.package_name) | .Id')
+    package_id=$(sfdx force:package:list targetdevhubusername $1 --json | jq -r '.result[] | select(.Name==env.package_name) | .Id')
   }
 
 
@@ -186,19 +225,30 @@ deploy-to-production:
 
 
   # Function to build a package version
+  # Pass in the dev hub username/alias
 
   build_package_version () {
-    local output=$(sfdx force:package:version:create --package $package_name --installationkeybypass --wait 10 --json --targetdevhubusername HUB_ORG_ALIAS)
+    local output=$(sfdx force:package:version:create --package $package_name --installationkeybypass --wait 10 --json --targetdevhubusername $1)
     if [ ! $output ]; then exit 1; fi
     local subscriber_package_version_id=$(jq ".result.SubscriberPackageVersionId" -r <<< $output)
     echo "$subscriber_package_version_id" > SUBSCRIBER_PACKAGE_VERSION_ID.TXT
   }
 
 
-  # Install a package version -- pass targetusername as argument -- assumes package ID is stored
+  # Install a package version
+  # Pass targetusername as argument -- assumes package ID is stored
 
   install_package_version () {
     sfdx force:package:install --package "`cat SUBSCRIBER_PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername $1 --noprompt
+  }
+
+
+  # Promote package version
+  # Only required in production
+  # Pass in the username/alias of the org (probably PRODUCTION)
+
+  promote_package_version () {
+    sfdx force:package:version:promote --package "`cat SUBSCRIBER_PACKAGE_VERSION_ID.TXT`" --targetdevhubusername $1 --noprompt
   }
 
 
@@ -216,24 +266,23 @@ deploy-to-production:
 
 
   # Create a scratch org
-  # - Pass targetusername (HUB_ORG_ALIAS) as argument
+  # - Pass targetusername (the hub org alias) as argument
   # - Assumes there is a config/project-scratch-def.json file
   # - Sets $scratch_org_username
   # TODO: Remember scratch org username for the branch
 
   create_scratch_org() {
-    local output=$(sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
+    local output=$(sfdx force:org:create --targetdevhubusername $1 --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
   }
 
 
   # Push to scratch org
-  # Assumes username is available in SCRATCH_ORG_USERNAME.txt
+  # TODO: Assumes username is available in SCRATCH_ORG_USERNAME.txt
 
   push_to_scratch_org_and_test () {
     if [ ! $scratch_org_username ]; then exit 1; fi
-    echo $scratch_org_username
-    sfdx force:org:display --targetusername "$scratch_org_username"
+    #sfdx force:org:display --targetusername "$scratch_org_username"
     sfdx force:source:push --targetusername $scratch_org_username
     #sfdx force:user:permset:assign --targetusername `cat SCRATCH_ORG_USERNAME.txt` --permsetname ______
     #sfdx force:data:tree:import --plan data/sample-data-plan.json
@@ -260,105 +309,105 @@ before_script:
 #
 # Create Scratch Org for code testing -- Stage 1
 #
-.legacy-code-testing:
-  stage: code-testing
-  except:
-    variables:
-      - $SCRATCH_ORG_DISABLED
-  script:
-
-    # Authenticate to the Dev Hub using the server key
-    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
-
-    # Create scratch org
-    - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
-    - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
-
-    # Push source to scratch org (This is with source code, all files, etc)
-    - sfdx force:source:push --targetusername $SCRATCH_ORG_ALIAS
-
-    # Assign dreamhouse permission set to scratch org default user
-    - sfdx force:user:permset:assign --targetusername $SCRATCH_ORG_ALIAS --permsetname dreamhouse
-
-    # Add sample data into app
-    - sfdx force:data:tree:import --plan data/sample-data-plan.json
-
-    # Unit Testing
-    - sfdx force:apex:test:run --targetusername $SCRATCH_ORG_ALIAS --wait 10 --resultformat human --codecoverage --testlevel $TESTLEVEL
-
-    # Delete Scratch Org
-    - sfdx force:org:delete --targetusername $SCRATCH_ORG_ALIAS --noprompt
+# .legacy-code-testing:
+#   stage: code-testing
+#   except:
+#     variables:
+#       - $SCRATCH_ORG_DISABLED
+#   script:
+#
+#     # Authenticate to the Dev Hub using the server key
+#     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+#
+#     # Create scratch org
+#     - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
+#     - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
+#
+#     # Push source to scratch org (This is with source code, all files, etc)
+#     - sfdx force:source:push --targetusername $SCRATCH_ORG_ALIAS
+#
+#     # Assign dreamhouse permission set to scratch org default user
+#     - sfdx force:user:permset:assign --targetusername $SCRATCH_ORG_ALIAS --permsetname dreamhouse
+#
+#     # Add sample data into app
+#     - sfdx force:data:tree:import --plan data/sample-data-plan.json
+#
+#     # Unit Testing
+#     - sfdx force:apex:test:run --targetusername $SCRATCH_ORG_ALIAS --wait 10 --resultformat human --codecoverage --testlevel $TESTLEVEL
+#
+#     # Delete Scratch Org
+#     - sfdx force:org:delete --targetusername $SCRATCH_ORG_ALIAS --noprompt
 
 #
 # Create a Scratch Org, create a package/artifact and push into org for testing
 #
-.leagcy-integration-testing:
-  except:
-    variables:
-      - $SCRATCH_ORG_DISABLED
-  artifacts:
-    paths:
-      - PACKAGE_VERSION_ID.TXT
-      - SCRATCH_ORG_USERNAME.TXT
-  stage: integration-testing
-  script:
-
-    # Authenticate to the Dev Hub using the server key
-    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
-
-    ## Create scratch org
-    - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
-    - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
-    ## Create packaged version
-    - export PACKAGE_VERSION_ID="$(eval sfdx force:package:version:create --package $ --installationkeybypass --wait 10 --json --targetdevhubusername HUB_ORG_ALIAS | jq '.result.SubscriberPackageVersionId' | tr -d '"')"
-    ## Save your PACKAGE_VERSION_ID to a file for later use during deploy so we know what version to deploy
-    - echo "$PACKAGE_VERSION_ID" > PACKAGE_VERSION_ID.TXT
-
-    ## Install package in DevHub org (this is a compiled library of the app)
-    - sfdx force:package:list
-    - sfdx force:package:install --package $PACKAGE_VERSION_ID --wait 10 --publishwait 10 --targetusername $SCRATCH_ORG_ALIAS --noprompt
-
-    ## Assign dreamhouse permission set to scratch org default user
-    - sfdx force:user:permset:assign --targetusername $SCRATCH_ORG_ALIAS --permsetname dreamhouse
-
-    ## Add sample data into app
-    - sfdx force:data:tree:import --plan data/sample-data-plan.json
-
-    ## Run unit tests in scratch org
-    - sfdx force:apex:test:run --targetusername $SCRATCH_ORG_ALIAS --wait 10 --resultformat human --codecoverage --testlevel $TESTLEVEL
-
-    ## Get the username for the scratch org
-    - export SCRATCH_ORG_USERNAME="$(eval sfdx force:user:display --targetusername $SCRATCH_ORG_ALIAS --json | jq -r '.result.username')"
-    - echo "$SCRATCH_ORG_USERNAME" > ./SCRATCH_ORG_USERNAME.TXT
-
-    ## Generate a new password for the scrach org
-    - sfdx force:user:password:generate
-    - echo -e "\n\n\n\n"
-
-    ## Display username, password, and instance URL for login
-    - sfdx force:user:display
+# .leagcy-integration-testing:
+#   except:
+#     variables:
+#       - $SCRATCH_ORG_DISABLED
+#   artifacts:
+#     paths:
+#       - PACKAGE_VERSION_ID.TXT
+#       - SCRATCH_ORG_USERNAME.TXT
+#   stage: integration-testing
+#   script:
+#
+#     # Authenticate to the Dev Hub using the server key
+#     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+#
+#     ## Create scratch org
+#     - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
+#     - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
+#     ## Create packaged version
+#     - export PACKAGE_VERSION_ID="$(eval sfdx force:package:version:create --package $ --installationkeybypass --wait 10 --json --targetdevhubusername HUB_ORG_ALIAS | jq '.result.SubscriberPackageVersionId' | tr -d '"')"
+#     ## Save your PACKAGE_VERSION_ID to a file for later use during deploy so we know what version to deploy
+#     - echo "$PACKAGE_VERSION_ID" > PACKAGE_VERSION_ID.TXT
+#
+#     ## Install package in DevHub org (this is a compiled library of the app)
+#     - sfdx force:package:list
+#     - sfdx force:package:install --package $PACKAGE_VERSION_ID --wait 10 --publishwait 10 --targetusername $SCRATCH_ORG_ALIAS --noprompt
+#
+#     ## Assign dreamhouse permission set to scratch org default user
+#     - sfdx force:user:permset:assign --targetusername $SCRATCH_ORG_ALIAS --permsetname dreamhouse
+#
+#     ## Add sample data into app
+#     - sfdx force:data:tree:import --plan data/sample-data-plan.json
+#
+#     ## Run unit tests in scratch org
+#     - sfdx force:apex:test:run --targetusername $SCRATCH_ORG_ALIAS --wait 10 --resultformat human --codecoverage --testlevel $TESTLEVEL
+#
+#     ## Get the username for the scratch org
+#     - export SCRATCH_ORG_USERNAME="$(eval sfdx force:user:display --targetusername $SCRATCH_ORG_ALIAS --json | jq -r '.result.username')"
+#     - echo "$SCRATCH_ORG_USERNAME" > ./SCRATCH_ORG_USERNAME.TXT
+#
+#     ## Generate a new password for the scrach org
+#     - sfdx force:user:password:generate
+#     - echo -e "\n\n\n\n"
+#
+#     ## Display username, password, and instance URL for login
+#     - sfdx force:user:display
 
 
 # Delete the scratch org to keep everything clean
 
-.leagacy-Delete Scratch Org:
-  except:
-    variables:
-      - $SCRATCH_ORG_DISABLED
-  stage: app-deploy
-  when: manual
-  script:
-    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
-    - sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HUB_ORG_ALIAS --where "SignupUsername='`cat ./SCRATCH_ORG_USERNAME.TXT`'"
+# .leagacy-Delete Scratch Org:
+#   except:
+#     variables:
+#       - $SCRATCH_ORG_DISABLED
+#   stage: app-deploy
+#   when: manual
+#   script:
+#     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+#     - sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HUB_ORG_ALIAS --where "SignupUsername='`cat ./SCRATCH_ORG_USERNAME.TXT`'"
 
 
 #
 # Promote the package to downstream environment for UAT for example
 #
-.leagcy-Deploy to Production:
-  stage: app-deploy
-  when: manual
-  only: ['master']
-  script:
-    - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
-    - sfdx force:package:install --package "`cat PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername HUB_ORG_ALIAS --noprompt
+# .leagcy-Deploy to Production:
+#   stage: app-deploy
+#   when: manual
+#   only: ['master']
+#   script:
+#     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+#     - sfdx force:package:install --package "`cat PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername HUB_ORG_ALIAS --noprompt
