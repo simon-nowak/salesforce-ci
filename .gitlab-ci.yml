@@ -31,12 +31,12 @@ deploy-scratch-org:
       - $SCRATCH_DISABLED
   script:
     - setup_sfdx
-    - if ! check_daily_scratch_orgs $SF_USERNAME; then exit 1; fi
-    - create_scratch_org
+    - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - if ! check_daily_scratch_orgs DEVHUB; then exit 1; fi
+    - create_scratch_org DEVHUB
     - push_to_scratch_org_and_test
     - echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
     - populate_url_artifact "$scratch_org_username"
-    - echo "$environment_html"
     - echo "$environment_html" > ENVIRONMENT.html
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
@@ -151,7 +151,18 @@ deploy-to-production:
     sfdx plugins --core
 
     # Authenticate using JWT
-    sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+    #sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+  }
+
+
+  # Authenticate to Salesforce
+  # First argument is the URL itself, second argument is the alias to be used
+
+  authenticate () {
+    local file=$(mktemp)
+    echo $1 > $file
+    sfdx force:auth:sfdxurl:store --json --sfdxurlfile $file --setalias $2
+    rm $file
   }
 
 
@@ -216,24 +227,23 @@ deploy-to-production:
 
 
   # Create a scratch org
-  # - Pass targetusername (HUB_ORG_ALIAS) as argument
+  # - Pass targetusername (the hub org alias) as argument
   # - Assumes there is a config/project-scratch-def.json file
   # - Sets $scratch_org_username
   # TODO: Remember scratch org username for the branch
 
   create_scratch_org() {
-    local output=$(sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
+    local output=$(sfdx force:org:create --targetdevhubusername $1 --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
   }
 
 
   # Push to scratch org
-  # Assumes username is available in SCRATCH_ORG_USERNAME.txt
+  # TODO: Assumes username is available in SCRATCH_ORG_USERNAME.txt
 
   push_to_scratch_org_and_test () {
     if [ ! $scratch_org_username ]; then exit 1; fi
-    echo $scratch_org_username
-    sfdx force:org:display --targetusername "$scratch_org_username"
+    #sfdx force:org:display --targetusername "$scratch_org_username"
     sfdx force:source:push --targetusername $scratch_org_username
     #sfdx force:user:permset:assign --targetusername `cat SCRATCH_ORG_USERNAME.txt` --permsetname ______
     #sfdx force:data:tree:import --plan data/sample-data-plan.json
