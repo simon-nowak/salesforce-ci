@@ -14,7 +14,7 @@ test:
       - $TEST_DISABLED
   image: node:latest
   before_script:
-    - npm init
+    - npm init -y
     - npm install
     - npm install @salesforce/lwc-jest --save-dev
   script:

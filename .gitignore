@@ -13,3 +13,6 @@ JWT/
 delete_me.*
 assets/server.key
 bin/test.sh
+node_modules/
+package-lock.json
+package.json
