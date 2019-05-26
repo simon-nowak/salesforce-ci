@@ -315,13 +315,13 @@ deploy-to-production:
 
     # Check environment variables
     if [ ! $package_name ]; then
-      debug=$(echo "[get_package_id] no package name argument provided, defaulting to environment variable PACKAGE_NAME=$PACKAGE_NAME" | tee /dev/stderr)
+      debug=$(echo "[get_package_id] no package name argument provided, defaulting to environment variable PACKAGE_NAME" | tee /dev/stderr)
       package_name=$PACKAGE_NAME
     fi
 
     # Check for default package directory in sfdx-project.json
     if [ ! $package_name ]; then
-      debug=$(echo "[get_package_id] no package name found, defaulting to default package directory in sfdx-project.json" | tee /dev/stderr)
+      debug=$(echo "[get_package_id] no PACKAGE_NAME environment variable set, defaulting to default package directory in sfdx-project.json" | tee /dev/stderr)
       package_name=$(cat sfdx-project.json | tee /dev/stderr | jq -r '.packageDirectories[] | select(.default==true) | .package')
     fi
 
@@ -340,7 +340,7 @@ deploy-to-production:
     # Retrieve package id for package name
     package_id=$(sfdx force:package:list --targetdevhubusername "$devhub_username" --json | tee /dev/stderr | jq -r '.result[] | select(.Name == env.package_name) | .Id')
     if [ ! $package_id ]; then
-      debug=$(echo "ERROR We could not find an package with name '$package_name' owned by this Dev Hub org." | tee /dev/stderr)
+      debug=$(echo "ERROR We could not find a package with name '$package_name' owned by this Dev Hub org." | tee /dev/stderr)
       exit 1
     fi
 
