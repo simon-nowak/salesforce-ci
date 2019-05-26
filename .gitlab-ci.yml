@@ -30,13 +30,15 @@ deploy-scratch-org:
   allow_failure: false
   script:
     - install_salesforce_cli
+    - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
-    - if ! check_daily_scratch_orgs DEVHUB; then exit 1; fi
-    - create_scratch_org DEVHUB
-    - push_to_scratch_org_and_test
-    - echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
+    - check_daily_scratch_orgs DEVHUB
+    - scratch_org_username=$(create_scratch_org DEVHUB)
+    - push_to_scratch_org "$scratch_org_username"
+      # TODO need hook to let developers customize their org;
+      # maybe call a script they provide in their package.json just like we do for lwc jest tests and apex tests
+      # this allows them to customize what permission sets to assign, data to load, etc.
     - populate_url_artifact "$scratch_org_username"
-    - echo "$environment_html" > ENVIRONMENT.html
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
@@ -63,15 +65,15 @@ test-scratch-lwc:
   script:
     - install_jq
     - install_lwc_jest
-    - npm run test:unit
+    - test_lwc_jest
 
 
 test-scratch-apex:
   stage: test-scratch
-  only:
-    variables:
-      - $CI_COMMIT_REF_NAME == 'master'
-      - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
+  #only:
+    #variables:
+      #- $CI_COMMIT_REF_NAME == 'master'
+      #- $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
       - $SCRATCH_DISABLED
@@ -81,6 +83,7 @@ test-scratch-apex:
     - deploy-scratch-org
   script:
     - install_salesforce_cli
+    - install_jq
     - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
     - test_apex $scratch_org_username
 
@@ -100,8 +103,9 @@ delete-scratch-org:
     - deploy-scratch-org
   script:
     - install_salesforce_cli
+    - install_jq
     - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
-    - delete_scratch_org $scratch_org_username
+    - delete_scratch_org DEVHUB $scratch_org_username
 
 
 # TODO: test this with tags instead of a branch
@@ -114,20 +118,22 @@ deploy-to-sandbox:
   except:
     variables:
       - $SANDBOX_DISABLED
+  allow_failure: false
   environment:
     name: sandbox
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
   script:
     - install_salesforce_cli
+    - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
-    - get_package_name_and_id DEVHUB
-    - build_package_version DEVHUB
+    - package_id=$(get_package_id DEVHUB $PACKAGE_NAME)
+    - package_version_id=$(build_package_version DEVHUB $package_id)
     - authenticate $SANDBOX_AUTH_URL SANDBOX
-    - install_package_version SANDBOX
+    - install_package_version SANDBOX $package_version_id
     - populate_url_artifact SANDBOX
-    - echo "$environment_html" > ENVIRONMENT.html
   artifacts:
     paths:
+      - SUBSCRIBER_PACKAGE_VERSION_ID.txt
       - ENVIRONMENT.html
 
 
@@ -146,14 +152,13 @@ deploy-to-production:
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
   script:
     - install_salesforce_cli
+    - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
-    - get_package_name_and_id DEVHUB
-    - build_package_version DEVHUB
+    - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
     - authenticate $PRODUCTION_AUTH_URL PRODUCTION
-    - promote_package_version PRODUCTION
-    - install_package_version PRODUCTION
+    - promote_package_version PRODUCTION $package_version_id
+    - install_package_version PRODUCTION $package_version_id
     - populate_url_artifact PRODUCTION
-    - echo "$environment_html" > ENVIRONMENT.html
   artifacts:
     paths:
       - ENVIRONMENT.html
@@ -161,7 +166,8 @@ deploy-to-production:
 
 .sfdx_helpers: &sfdx_helpers |
 
-  # Always call install_salesforce_cli first
+  # Function to install the Salesforce CLI.
+  # No arguments.
 
   function install_salesforce_cli() {
 
@@ -201,154 +207,217 @@ deploy-to-production:
   }
 
 
-  # Install jq json parsing library
+  # Function to install jq json parsing library.
+  # No arguments.
 
   function install_jq() {
     apt update && apt -y install jq
   }
 
 
-  # Install LWC Jest dependencies
+  # Function to install LWC Jest dependencies.
+  # Will create or update the package.json with { "test:lwc" : "lwc-jest" } to the scripts property.
+  # No arguments.
 
   function install_lwc_jest() {
 
+    # Create a default package.json if file doesn't exist
     if [ ! -f "package.json" ]; then
       npm init -y
     fi
 
-    local scriptValue=$(jq -r '.scripts["test:unit"]' < package.json)
+    # Check if the scripts property in package.json contains key for "test:lwc"
+    local scriptValue=$(jq -r '.scripts["test:lwc"]' < package.json)
 
+    # If no "test:lwc" script property, then add one
     if [ -n "$scriptValue" ]; then
       local tmp=$(mktemp)
-      jq '.scripts["test:unit"]="lwc-jest"' package.json > $tmp
+      jq '.scripts["test:lwc"]="lwc-jest"' package.json > $tmp
       mv $tmp package.json
     fi
 
+    # Now that we have package.json to store dependency references to
+    # and to run our lwc jest test scripts, run npm installer
     npm install
     npm install @salesforce/lwc-jest --save-dev
 
   }
 
 
-  # Authenticate to Salesforce
-  # First argument is the URL itself, second argument is the alias to be used
+  # Function to authenticate to Salesforce.
+  # Arguments:
+  #     $1 = Sfdx Auth URL
+  #     $2 = alias to set
 
   function authenticate() {
+    local sfdx_auth_url=$1
+    local alias_to_set=$2
     local file=$(mktemp)
-    echo $1 > $file
-    sfdx force:auth:sfdxurl:store --json --sfdxurlfile $file --setalias $2
+    echo $sfdx_auth_url > $file
+    sfdx force:auth:sfdxurl:store --json --sfdxurlfile "$file" --setalias "$alias_to_set"
+    sfdx force:config:set defaultusername=$alias_to_set
+    sfdx force:config:set defaultdevhubusername=$alias_to_set
     rm $file
   }
 
 
-  # Function to get package name and ID
-  # Pass in the dev hub username/alias
+  # Function to get package name and ID.
+  # Arguments:
+  #     $1 = dev hub alias
+  #     $2 = package name (optional, if not set then looks at $PACKAGE_NAME env variable, then in sfdx-project.json for default package directory)
+  # Returns the package id for the given package name owned by the given dev hub.
 
-  function get_package_name_and_id() {
-    package_name=$PACKAGE_NAME
+  function get_package_id() {
+    local dev_hub_alias=$1
+    local package_name=$2
+    if [ ! $package_name ]; then
+      package_name=$PACKAGE_NAME
+    fi
     if [ ! $package_name ]; then
       package_name=$(cat sfdx-project.json | jq -r '.packageDirectories[] | select(.default==true) | .package')
     fi
     if [ ! $package_name ]; then
       package_name=$(cat sfdx-project.json | jq -r '.packageDirectories | .[0] | .package')
     fi
-    package_id=$(sfdx force:package:list targetdevhubusername $1 --json | jq -r '.result[] | select(.Name==env.package_name) | .Id')
+    if [ ! $package_name ]; then
+      echo "ERROR Package name not specified. Set the PACKAGE_NAME environment variable or specify a default package directory in sfdx-project.json."
+      exit 1
+    fi
+    echo $(sfdx force:package:list targetdevhubusername "$dev_hub_alias" --json | jq -r '.result[] | select(.Name == env.package_name) | .Id')
   }
 
 
-  # Function to check whether there are daily scratch orgs left -- pass targetusername as argument
+  # Function to check whether there are daily scratch orgs left.
+  # Arguments:
+  #     $1 = target org username whose limits to check
 
   function check_daily_scratch_orgs() {
-    local limits=`sfdx force:limits:api:display -u $1 --json`
-    local dso=`jq '.result[] | select(.name == "DailyScratchOrgs")' <<< $limits`
-    local dsomax=`jq '.max' <<< $dso`
-    local dsorem=`jq '.remaining' <<< $dso`
+    local org_alias=$1
+    local limits=$(sfdx force:limits:api:display --targetusername "$org_alias" --json)
+    local dso=$(jq -r '.result[] | select(.name == "DailyScratchOrgs")' <<< $limits)
+    local dsomax=$(jq -r '.max' <<< $dso)
+    local dsorem=$(jq -r '.remaining' <<< $dso)
     if [ $dsorem -le 0 ]; then
-      echo "ERROR: Limit of $dsomax Daily Scratch Orgs reached"
+      echo "ERROR Limit of $dsomax Daily Scratch Orgs reached"
+      exit 1
     else
       echo "$dsorem of $dsomax Daily Scratch Orgs previously created - OK to proceed"
     fi
-    return $(( $dsorem <= 0 ))
   }
 
 
-  # Function to build a package version
-  # Pass in the dev hub username/alias
+  # Function to build a package version.
+  # Arguments:
+  #     $1 = dev hub alias
+  #     $2 = package id
+  # Returns the created package version id, and writes it to a file SUBSCRIBER_PACKAGE_VERSION_ID.txt to be shared as an artifact between stages.
 
   function build_package_version() {
-    local output=$(sfdx force:package:version:create --package $package_name --installationkeybypass --wait 10 --json --targetdevhubusername $1)
+    local dev_hub_alias=$1
+    local package_id=$2
+    local output=$(sfdx force:package:version:create --package $package_id --installationkeybypass --wait 10 --json --targetdevhubusername $dev_hub_alias)
     if [ ! $output ]; then exit 1; fi
-    local subscriber_package_version_id=$(jq ".result.SubscriberPackageVersionId" -r <<< $output)
-    echo "$subscriber_package_version_id" > SUBSCRIBER_PACKAGE_VERSION_ID.TXT
+    local subscriber_package_version_id=$(jq -r '.result.SubscriberPackageVersionId' <<< $output)
+    echo "$subscriber_package_version_id" > SUBSCRIBER_PACKAGE_VERSION_ID.txt
+    echo $subscriber_package_version_id
   }
 
 
-  # Install a package version
-  # Pass targetusername as argument -- assumes package ID is stored
+  # Install a package version.
+  # Arguments:
+  #     $1 = target username where to install package version
+  #     $2 = package version id to install
 
   function install_package_version() {
-    sfdx force:package:install --package "`cat SUBSCRIBER_PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername $1 --noprompt
+    local org_alias=$1
+    local package_version_id=$2
+    sfdx force:package:install --package "$package_version_id" --wait 10 --publishwait 10 --targetusername "$org_alias" --noprompt
   }
 
 
-  # Promote package version
-  # Only required in production
-  # Pass in the username/alias of the org (probably PRODUCTION)
+  # Promote package version.
+  # Only required in production.
+  # Arguments:
+  #     $1 = target dev hub that owns the package to promote
+  #     $2 = package version id to promote
 
   function promote_package_version() {
-    sfdx force:package:version:promote --package "`cat SUBSCRIBER_PACKAGE_VERSION_ID.TXT`" --targetdevhubusername $1 --noprompt
+    local dev_hub_alias=$1
+    local package_version_id=$2
+    sfdx force:package:version:promote --package "$package_version_id" --targetdevhubusername $dev_hub_alias --noprompt
   }
 
 
-  # Populate the URL artifact with HTML to redirect to an environment
+  # Populate the URL artifact with HTML to redirect to an environment.
+  # Generates the URL to open the given org, and writes it to a file ENVIRONMENT.html to be shared as an artifact between stages.
   # NOTE: This is a tokenized URL and must be kept secret!
-  # Pass targetusername as argument
+  # Arguments:
+  #     $1 = org alias to get access url to
 
   function populate_url_artifact() {
-    if [ ! $1 ]; then exit 1; fi
-    local output=$(sfdx force:org:open --targetusername $1 --urlonly --json)
+    local org_alias=$1
+    if [ ! $org_alias ]; then
+      echo "ERROR No org username provided to 'populate_url_artifact' function"
+      exit 1;
+    fi
+    local output=$(sfdx force:org:open --targetusername "$org_alias" --urlonly --json)
     local url=$(jq -r ".result.url" <<< $output)
-    environment_html="<script>window.onload=function(){window.location.href=\"$url\"}</script>"
+    local environment_html="<script>window.onload=function(){window.location.href=\"$url\"}</script>"
+    echo "$environment_html" > ENVIRONMENT.html
     echo "To browse the scratch org, click 'Browse' under 'Job artifacts' and select 'ENVIRONMENT.html'"
   }
 
 
-  # Create a scratch org
-  # - Pass targetusername (the hub org alias) as argument
-  # - Assumes there is a config/project-scratch-def.json file
-  # - Sets $scratch_org_username
-  # TODO: Remember scratch org username for the branch
+  # Create a scratch org.
+  # Arguments:
+  #     $1 = dev hub alias
+  # Returns the newly-created scratch org username, and writes it to a file SCRATCH_ORG_USERNAME.txt to be shared as an artifact between stages.
 
   function create_scratch_org() {
     local output=$(sfdx force:org:create --targetdevhubusername $1 --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
+    echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
+    echo $scratch_org_username
   }
 
 
-  # Push to scratch org
-  # TODO: Assumes username is available in SCRATCH_ORG_USERNAME.txt
+  # Push to scratch org.
+  # Arguments
+  #     $1 = scratch org username
 
-  function push_to_scratch_org_and_test() {
-    if [ ! $scratch_org_username ]; then exit 1; fi
-    #sfdx force:org:display --targetusername "$scratch_org_username"
+  function push_to_scratch_org() {
+    local scratch_org_username=$1
+    if [ ! $scratch_org_username ]; then
+      echo "ERROR No scratch org username provided to 'push_to_scratch_org' function"
+      exit 1;
+    fi
     sfdx force:source:push --targetusername $scratch_org_username
-    #sfdx force:user:permset:assign --targetusername `cat SCRATCH_ORG_USERNAME.txt` --permsetname ______
-    #sfdx force:data:tree:import --plan data/sample-data-plan.json
-    #sfdx force:apex:test:run --targetusername $scratch_org_username --wait 10 --resultformat human --codecoverage --testlevel _________
   }
 
 
-  # Delete a scratch org
-  # Pass in the scratch_org_username
+  # Delete a scratch org.
+  # Arguments
+  #     $1 = dev hub username
+  #     $2 = scratch org username
 
   function delete_scratch_org() {
-    if [ ! $1 ]; then exit 1; fi
-    sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HUB_ORG_ALIAS --where "SignupUsername='$1'"
+    local devhub_username=$1
+    local scratch_org_username=$2
+    if [ ! $1 ]; then
+      echo "ERROR No dev hub org username provided to 'delete_scratch_org' function"
+      exit 1;
+    fi
+    if [ ! $scratch_org_username ]; then
+      echo "ERROR No scratch org username provided to 'delete_scratch_org' function"
+      exit 1;
+    fi
+    sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername $devhub_username --where "SignupUsername='$scratch_org_username'"
   }
 
 
-  # Checks if there are LWC Jest Test files in any of the package directories of sfdx-project.json
-  # Function takes no arguments
+  # Checks if there are LWC Jest Test files in any of the package directories of sfdx-project.json.
+  # This is necessary because npm will throw error if no test classes are found.
+  # No arguments.
   # Returns `true` or `false`
 
   function check_has_jest_tests() {
@@ -366,10 +435,12 @@ deploy-to-production:
   }
 
 
-  ## Runs `npm run test:unit` to execute LWC Jest tests.
-  ## Function takes no arguments.
-  ## Should be called after `setup_lwc`.
-  ## Uses `check_has_jest_tests` to know if there are actually any tests to run.
+  # Runs `npm run test:unit` to execute LWC Jest tests.
+  # Function takes no arguments.
+  # Should be called after `setup_lwc`.
+  # Uses `check_has_jest_tests` to know if there are actually any tests to run.
+  # If there aren't any jest tests then npm would throw an error and fail the job,
+  # so we skip running npm if there are no tests, essentially skipping them to avoid error.
 
   function test_lwc() {
     local hasJestTests=$(check_has_jest_tests)
@@ -378,6 +449,36 @@ deploy-to-production:
     else
       echo 'Skipping lwc tests, found no jest tests in any package directories'
     fi
+  }
+
+  # Function to run apex tests.
+  # We leverage the script property `test:apex` in package.json to provide developers a "hook"
+  # to control exactly how they want their apex test to be executed.
+  # Arguments:
+  #     $1 = org alias
+
+  function test_apex() {
+
+    local org_alias=$1
+    if [ ! $org_alias ]; then
+      echo "ERROR No org username provided to 'test_apex' function"
+      exit 1;
+    fi
+
+    if [ ! -f "package.json" ]; then
+      npm init -y
+    fi
+
+    local scriptValue=$(jq -r '.scripts["test:apex"]' < package.json)
+
+    if [ -n "$scriptValue" ]; then
+      local tmp=$(mktemp)
+      jq '.scripts["test:apex"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10 --targetusername \"$org_alias\""' package.json > $tmp
+      mv $tmp package.json
+    fi
+
+    npm run test:apex
+
   }
 
 
