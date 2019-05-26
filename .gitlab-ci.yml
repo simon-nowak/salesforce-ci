@@ -1,24 +1,22 @@
+image: node:latest
+
+
+# Cache node modules between jobs
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+    - .sfdx/
 
 
 stages:
- - test
  - deploy-scratch
+ - test-scratch
  - delete-scratch
  - deploy-sandbox
+ - test-sandbox
  - deploy-production
 
-test:
-  stage: test
-  except:
-    variables:
-      - $TEST_DISABLED
-  image: node:latest
-  before_script:
-    - npm init -y
-    - npm install
-    - npm install @salesforce/lwc-jest --save-dev
-  script:
-    - node ./node_modules/@salesforce/lwc-jest/bin/lwc-jest
 
 deploy-scratch-org:
   stage: deploy-scratch
@@ -29,6 +27,7 @@ deploy-scratch-org:
   except:
     variables:
       - $SCRATCH_DISABLED
+  allow_failure: false
   script:
     - setup_sfdx
     - authenticate $DEVHUB_AUTH_URL DEVHUB
@@ -45,6 +44,33 @@ deploy-scratch-org:
     paths:
       - SCRATCH_ORG_USERNAME.txt
       - ENVIRONMENT.html
+      - ~/.sfdx
+
+
+test-scratch-lwc:
+  stage: test-scratch
+  except:
+    variables:
+      - $TEST_DISABLED
+  allow_failure: false
+  dependencies:
+    - deploy-scratch-org
+  before_script:
+    - setup_lwc_jest
+  script:
+    - npm run test:unit
+
+
+test-scratch-apex:
+  stage: test-scratch
+  except:
+    variables:
+      - $TEST_DISABLED
+  allow_failure: false
+  dependencies:
+    - deploy-scratch-org
+  script:
+    - test_apex "`cat SCRATCH_ORG_USERNAME.txt`"
 
 
 delete-scratch-org:
@@ -122,7 +148,6 @@ deploy-to-production:
 
 .sfdx_helpers: &sfdx_helpers |
 
-
   # Always call setup_sfdx first
 
   setup_sfdx () {
@@ -148,20 +173,6 @@ deploy-to-production:
     # For force:package:version:create, disables automatic updates to the sfdx-project.json file.
     export SFDX_PROJECT_AUTOUPDATE_DISABLE_FOR_PACKAGE_VERSION_CREATE=true
 
-    # Decrypt server key
-    #openssl aes-256-cbc -d -md md5 -in server.key.enc -out server.key -k $SERVER_KEY_PASSWORD
-
-
-    # Setup SFDX environment variables
-    # export SFDX_AUTOUPDATE_DISABLE=false
-    # export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
-    # export SFDX_DOMAIN_RETRY=300
-    # export SFDX_DISABLE_APP_HUB=true
-    # export SFDX_LOG_LEVEL=DEBUG
-    # export ROOTDIR=force-app/main/default/ # TODO: Is this right?
-    # export TESTLEVEL=RunLocalTests
-    # export PACKAGEVERSION=""
-
     # Install Salesforce CLI
     mkdir sfdx
     CLIURL=https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
@@ -177,8 +188,28 @@ deploy-to-production:
     # Install jq
     apt update && apt -y install jq
 
-    # Authenticate using JWT
-    #sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
+  }
+
+
+  # Install LWC Jest dependencies
+
+  setup_lwc_jest () {
+
+    if [ ! -f "package.json" ]; then
+      npm init -y
+    fi
+
+    local scriptValue=$(jq -r '.scripts["test:unit"]' < package.json)
+
+    if [ -n "$scriptValue" ]; then
+      local tmp=$(mktemp)
+      jq '.scripts["test:unit"]="lwc-jest"' package.json > $tmp
+      mv $tmp package.json
+    fi
+
+    npm install
+    npm install @salesforce/lwc-jest --save-dev
+
   }
 
 
@@ -256,7 +287,7 @@ deploy-to-production:
   # NOTE: This is a tokenized URL and must be kept secret!
   # Pass targetusername as argument
 
-  populate_url_artifact() {
+  populate_url_artifact () {
     if [ ! $1 ]; then exit 1; fi
     local output=$(sfdx force:org:open --targetusername $1 --urlonly --json)
     local url=$(jq -r ".result.url" <<< $output)
@@ -299,115 +330,40 @@ deploy-to-production:
   }
 
 
+  # Checks if there are LWC Jest Test files in any of the package directories of sfdx-project.json
+  # Function takes no arguments
+  # Returns `true` or `false`
+
+  check_has_jest_tests () {
+    local hasJestTests=false
+    for pkgDir in $(jq -r '.packageDirectories[].path' < sfdx-project.json)
+    do
+      if [ -f $pkgDir ]; then
+        local fileCnt=$(find $pkgDir -type f -path "**/__tests__/*.test.js" | wc -l);
+        if [ $fileCnt -gt 0 ]; then
+          hasJestTests=true
+        fi
+      fi
+    done
+    echo $hasJestTests
+  }
+
+
+  ## Runs `npm run test:unit` to execute LWC Jest tests.
+  ## Function takes no arguments.
+  ## Should be called after `setup_lwc`.
+  ## Uses `check_has_jest_tests` to know if there are actually any tests to run.
+
+  test_lwc () {
+    local hasJestTests=$(check_has_jest_tests)
+    if [ $hasJestTests ]; then
+      npm run test:unit
+    else
+      echo 'Skipping lwc tests, found no jest tests in any package directories'
+    fi
+  }
+
+
 before_script:
   - *sfdx_helpers
 
-
-
-# --------------------------- LEGACY STUFF -------------------------------------
-
-#
-# Create Scratch Org for code testing -- Stage 1
-#
-# .legacy-code-testing:
-#   stage: code-testing
-#   except:
-#     variables:
-#       - $SCRATCH_ORG_DISABLED
-#   script:
-#
-#     # Authenticate to the Dev Hub using the server key
-#     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
-#
-#     # Create scratch org
-#     - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
-#     - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
-#
-#     # Push source to scratch org (This is with source code, all files, etc)
-#     - sfdx force:source:push --targetusername $SCRATCH_ORG_ALIAS
-#
-#     # Assign dreamhouse permission set to scratch org default user
-#     - sfdx force:user:permset:assign --targetusername $SCRATCH_ORG_ALIAS --permsetname dreamhouse
-#
-#     # Add sample data into app
-#     - sfdx force:data:tree:import --plan data/sample-data-plan.json
-#
-#     # Unit Testing
-#     - sfdx force:apex:test:run --targetusername $SCRATCH_ORG_ALIAS --wait 10 --resultformat human --codecoverage --testlevel $TESTLEVEL
-#
-#     # Delete Scratch Org
-#     - sfdx force:org:delete --targetusername $SCRATCH_ORG_ALIAS --noprompt
-
-#
-# Create a Scratch Org, create a package/artifact and push into org for testing
-#
-# .leagcy-integration-testing:
-#   except:
-#     variables:
-#       - $SCRATCH_ORG_DISABLED
-#   artifacts:
-#     paths:
-#       - PACKAGE_VERSION_ID.TXT
-#       - SCRATCH_ORG_USERNAME.TXT
-#   stage: integration-testing
-#   script:
-#
-#     # Authenticate to the Dev Hub using the server key
-#     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
-#
-#     ## Create scratch org
-#     - sfdx force:org:create --targetdevhubusername HUB_ORG_ALIAS --setdefaultusername --definitionfile config/project-scratch-def.json --setalias $SCRATCH_ORG_ALIAS --wait 10 --durationdays 1
-#     - sfdx force:org:display --targetusername $SCRATCH_ORG_ALIAS
-#     ## Create packaged version
-#     - export PACKAGE_VERSION_ID="$(eval sfdx force:package:version:create --package $ --installationkeybypass --wait 10 --json --targetdevhubusername HUB_ORG_ALIAS | jq '.result.SubscriberPackageVersionId' | tr -d '"')"
-#     ## Save your PACKAGE_VERSION_ID to a file for later use during deploy so we know what version to deploy
-#     - echo "$PACKAGE_VERSION_ID" > PACKAGE_VERSION_ID.TXT
-#
-#     ## Install package in DevHub org (this is a compiled library of the app)
-#     - sfdx force:package:list
-#     - sfdx force:package:install --package $PACKAGE_VERSION_ID --wait 10 --publishwait 10 --targetusername $SCRATCH_ORG_ALIAS --noprompt
-#
-#     ## Assign dreamhouse permission set to scratch org default user
-#     - sfdx force:user:permset:assign --targetusername $SCRATCH_ORG_ALIAS --permsetname dreamhouse
-#
-#     ## Add sample data into app
-#     - sfdx force:data:tree:import --plan data/sample-data-plan.json
-#
-#     ## Run unit tests in scratch org
-#     - sfdx force:apex:test:run --targetusername $SCRATCH_ORG_ALIAS --wait 10 --resultformat human --codecoverage --testlevel $TESTLEVEL
-#
-#     ## Get the username for the scratch org
-#     - export SCRATCH_ORG_USERNAME="$(eval sfdx force:user:display --targetusername $SCRATCH_ORG_ALIAS --json | jq -r '.result.username')"
-#     - echo "$SCRATCH_ORG_USERNAME" > ./SCRATCH_ORG_USERNAME.TXT
-#
-#     ## Generate a new password for the scrach org
-#     - sfdx force:user:password:generate
-#     - echo -e "\n\n\n\n"
-#
-#     ## Display username, password, and instance URL for login
-#     - sfdx force:user:display
-
-
-# Delete the scratch org to keep everything clean
-
-# .leagacy-Delete Scratch Org:
-#   except:
-#     variables:
-#       - $SCRATCH_ORG_DISABLED
-#   stage: app-deploy
-#   when: manual
-#   script:
-#     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
-#     - sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HUB_ORG_ALIAS --where "SignupUsername='`cat ./SCRATCH_ORG_USERNAME.TXT`'"
-
-
-#
-# Promote the package to downstream environment for UAT for example
-#
-# .leagcy-Deploy to Production:
-#   stage: app-deploy
-#   when: manual
-#   only: ['master']
-#   script:
-#     - sfdx force:auth:jwt:grant --clientid $SF_CONSUMER_KEY --jwtkeyfile server.key --username $SF_USERNAME --setdefaultdevhubusername --setalias HUB_ORG_ALIAS
-#     - sfdx force:package:install --package "`cat PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername HUB_ORG_ALIAS --noprompt
