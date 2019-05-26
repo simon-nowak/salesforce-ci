@@ -46,7 +46,6 @@ deploy-scratch-org:
     paths:
       - SCRATCH_ORG_USERNAME.txt
       - ENVIRONMENT.html
-      - ~/.sfdx
 
 
 test-scratch-lwc:
@@ -473,11 +472,18 @@ deploy-to-production:
 
     if [ -n "$scriptValue" ]; then
       local tmp=$(mktemp)
-      jq '.scripts["test:apex"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10 --targetusername \"env.org_alias\""' package.json > $tmp
+      jq '.scripts["test:apex"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10"' package.json > $tmp
       mv $tmp package.json
     fi
 
+    # Set the default username so any CLI commands
+    # the developer has set in their "test:apex" script in package.json
+    # will operate on the correct environment.
+    # Afterwards, restore the original default username, just in case it was different.
+    local old_org_alias=$(jq -r '.result[].value' <<< $(sfdx force:config:get defaultusername --json))
+    sfdx force:config:set defaultusername=$org_alias
     npm run test:apex
+    sfdx force:config:set defaultusername=$old_org_alias
 
   }
 
