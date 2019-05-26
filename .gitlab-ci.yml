@@ -49,22 +49,31 @@ deploy-scratch-org:
 
 test-scratch-lwc:
   stage: test-scratch
+  only:
+    variables:
+      #- $CI_COMMIT_REF_NAME == 'master'
+      #- $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
+      - $SCRATCH_DISABLED
       - $TEST_DISABLED
   allow_failure: false
   dependencies:
     - deploy-scratch-org
-  before_script:
-    - setup_lwc_jest
   script:
+    - setup_lwc_jest
     - npm run test:unit
 
 
 test-scratch-apex:
   stage: test-scratch
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
+      - $SCRATCH_DISABLED
       - $TEST_DISABLED
   allow_failure: false
   dependencies:
