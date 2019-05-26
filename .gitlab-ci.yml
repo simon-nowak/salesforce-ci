@@ -20,10 +20,10 @@ stages:
 
 deploy-scratch-org:
   stage: deploy-scratch
-  #only:
-    #variables:
-      #- $CI_COMMIT_REF_NAME == 'master'
-      #- $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
       - $SCRATCH_DISABLED
@@ -45,15 +45,16 @@ deploy-scratch-org:
   artifacts:
     paths:
       - SCRATCH_ORG_USERNAME.txt
+      - SCRATCH_ORG_AUTH_URL.txt
       - ENVIRONMENT.html
 
 
 test-scratch-lwc:
   stage: test-scratch
-  #only:
-    #variables:
-      #- $CI_COMMIT_REF_NAME == 'master'
-      #- $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
       - $SCRATCH_DISABLED
@@ -69,10 +70,10 @@ test-scratch-lwc:
 
 test-scratch-apex:
   stage: test-scratch
-  #only:
-    #variables:
-      #- $CI_COMMIT_REF_NAME == 'master'
-      #- $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
       - $SCRATCH_DISABLED
@@ -84,6 +85,8 @@ test-scratch-apex:
     - install_salesforce_cli
     - install_jq
     - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
+    - scratch_org_auth_url=$(cat SCRATCH_ORG_AUTH_URL.txt)
+    - authenticate $scratch_org_auth_url $scratch_org_username
     - test_apex $scratch_org_username
 
 
@@ -373,9 +376,15 @@ deploy-to-production:
   # Returns the newly-created scratch org username, and writes it to a file SCRATCH_ORG_USERNAME.txt to be shared as an artifact between stages.
 
   function create_scratch_org() {
+
     local output=$(sfdx force:org:create --targetdevhubusername $1 --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
     echo "$scratch_org_username" > SCRATCH_ORG_USERNAME.txt
+
+    output=$(sfdx force:org:display --verbose --targetusername $scratch_org_username --json)
+    scratch_org_auth_url="$(jq -r '.result.sfdxAuthUrl' <<< $output)"
+    echo "$scratch_org_auth_url" > SCRATCH_ORG_AUTH_URL.txt
+
     echo $scratch_org_username
   }
 

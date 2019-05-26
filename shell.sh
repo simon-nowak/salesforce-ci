@@ -1,27 +1,17 @@
 #!/bin/bash
 
-check_has_jest_tests () {
+test () {
 
-  local hasJestTests=false
+    npm init -y
 
-  for pkgDir in $(jq -r '.packageDirectories[].path' < sfdx-project.json)
-  do
-    if [ -f $pkgDir ]; then
-      local fileCnt=$(find $pkgDir -type f -name "*.test.js" | wc -l);
-      if [ $fileCnt -gt 0 ]; then
-        hasJestTests=true
-      fi
-    fi
-  done
-
-  echo $hasJestTests
+    local org_alias=$1
+    local tmp=$(mktemp)
+    sfdx force:config:set defaultusername=$org_alias
+    jq '.scripts["test:apex"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10"' package.json > $tmp
+    mv $tmp package.json
 
 }
 
-check=$(check_has_jest_tests)
+test 'test-5ddsuc7ztawk@example.com'
 
-if [ $check ]; then
-  echo hooray!
-else
-  echo boo
-fi
+npm run test:apex
