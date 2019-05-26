@@ -20,16 +20,16 @@ stages:
 
 deploy-scratch-org:
   stage: deploy-scratch
-  only:
-    variables:
-      - $CI_COMMIT_REF_NAME == 'master'
-      - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
+  #only:
+    #variables:
+      #- $CI_COMMIT_REF_NAME == 'master'
+      #- $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
       - $SCRATCH_DISABLED
   allow_failure: false
   script:
-    - setup_sfdx
+    - install_salesforce_cli
     - authenticate $DEVHUB_AUTH_URL DEVHUB
     - if ! check_daily_scratch_orgs DEVHUB; then exit 1; fi
     - create_scratch_org DEVHUB
@@ -61,7 +61,8 @@ test-scratch-lwc:
   dependencies:
     - deploy-scratch-org
   script:
-    - setup_lwc_jest
+    - install_jq
+    - install_lwc_jest
     - npm run test:unit
 
 
@@ -79,7 +80,9 @@ test-scratch-apex:
   dependencies:
     - deploy-scratch-org
   script:
-    - test_apex "`cat SCRATCH_ORG_USERNAME.txt`"
+    - install_salesforce_cli
+    - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
+    - test_apex $scratch_org_username
 
 
 delete-scratch-org:
@@ -96,8 +99,9 @@ delete-scratch-org:
   dependencies:
     - deploy-scratch-org
   script:
-    - setup_sfdx
-    - delete_scratch_org "`cat SCRATCH_ORG_USERNAME.txt`"
+    - install_salesforce_cli
+    - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
+    - delete_scratch_org $scratch_org_username
 
 
 # TODO: test this with tags instead of a branch
@@ -114,7 +118,7 @@ deploy-to-sandbox:
     name: sandbox
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
   script:
-    - setup_sfdx
+    - install_salesforce_cli
     - authenticate $DEVHUB_AUTH_URL DEVHUB
     - get_package_name_and_id DEVHUB
     - build_package_version DEVHUB
@@ -141,7 +145,7 @@ deploy-to-production:
     name: production
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
   script:
-    - setup_sfdx
+    - install_salesforce_cli
     - authenticate $DEVHUB_AUTH_URL DEVHUB
     - get_package_name_and_id DEVHUB
     - build_package_version DEVHUB
@@ -157,9 +161,9 @@ deploy-to-production:
 
 .sfdx_helpers: &sfdx_helpers |
 
-  # Always call setup_sfdx first
+  # Always call install_salesforce_cli first
 
-  setup_sfdx () {
+  function install_salesforce_cli() {
 
     # Salesforce CLI Environment Variables
     # https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_cli_env_variables.htm
@@ -194,15 +198,19 @@ deploy-to-production:
     sfdx --version
     sfdx plugins --core
 
-    # Install jq
-    apt update && apt -y install jq
+  }
 
+
+  # Install jq json parsing library
+
+  function install_jq() {
+    apt update && apt -y install jq
   }
 
 
   # Install LWC Jest dependencies
 
-  setup_lwc_jest () {
+  function install_lwc_jest() {
 
     if [ ! -f "package.json" ]; then
       npm init -y
@@ -225,7 +233,7 @@ deploy-to-production:
   # Authenticate to Salesforce
   # First argument is the URL itself, second argument is the alias to be used
 
-  authenticate () {
+  function authenticate() {
     local file=$(mktemp)
     echo $1 > $file
     sfdx force:auth:sfdxurl:store --json --sfdxurlfile $file --setalias $2
@@ -236,7 +244,7 @@ deploy-to-production:
   # Function to get package name and ID
   # Pass in the dev hub username/alias
 
-  get_package_name_and_id () {
+  function get_package_name_and_id() {
     package_name=$PACKAGE_NAME
     if [ ! $package_name ]; then
       package_name=$(cat sfdx-project.json | jq -r '.packageDirectories[] | select(.default==true) | .package')
@@ -250,7 +258,7 @@ deploy-to-production:
 
   # Function to check whether there are daily scratch orgs left -- pass targetusername as argument
 
-  check_daily_scratch_orgs () {
+  function check_daily_scratch_orgs() {
     local limits=`sfdx force:limits:api:display -u $1 --json`
     local dso=`jq '.result[] | select(.name == "DailyScratchOrgs")' <<< $limits`
     local dsomax=`jq '.max' <<< $dso`
@@ -267,7 +275,7 @@ deploy-to-production:
   # Function to build a package version
   # Pass in the dev hub username/alias
 
-  build_package_version () {
+  function build_package_version() {
     local output=$(sfdx force:package:version:create --package $package_name --installationkeybypass --wait 10 --json --targetdevhubusername $1)
     if [ ! $output ]; then exit 1; fi
     local subscriber_package_version_id=$(jq ".result.SubscriberPackageVersionId" -r <<< $output)
@@ -278,7 +286,7 @@ deploy-to-production:
   # Install a package version
   # Pass targetusername as argument -- assumes package ID is stored
 
-  install_package_version () {
+  function install_package_version() {
     sfdx force:package:install --package "`cat SUBSCRIBER_PACKAGE_VERSION_ID.TXT`" --wait 10 --publishwait 10 --targetusername $1 --noprompt
   }
 
@@ -287,7 +295,7 @@ deploy-to-production:
   # Only required in production
   # Pass in the username/alias of the org (probably PRODUCTION)
 
-  promote_package_version () {
+  function promote_package_version() {
     sfdx force:package:version:promote --package "`cat SUBSCRIBER_PACKAGE_VERSION_ID.TXT`" --targetdevhubusername $1 --noprompt
   }
 
@@ -296,7 +304,7 @@ deploy-to-production:
   # NOTE: This is a tokenized URL and must be kept secret!
   # Pass targetusername as argument
 
-  populate_url_artifact () {
+  function populate_url_artifact() {
     if [ ! $1 ]; then exit 1; fi
     local output=$(sfdx force:org:open --targetusername $1 --urlonly --json)
     local url=$(jq -r ".result.url" <<< $output)
@@ -311,7 +319,7 @@ deploy-to-production:
   # - Sets $scratch_org_username
   # TODO: Remember scratch org username for the branch
 
-  create_scratch_org() {
+  function create_scratch_org() {
     local output=$(sfdx force:org:create --targetdevhubusername $1 --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 1 --json)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
   }
@@ -320,7 +328,7 @@ deploy-to-production:
   # Push to scratch org
   # TODO: Assumes username is available in SCRATCH_ORG_USERNAME.txt
 
-  push_to_scratch_org_and_test () {
+  function push_to_scratch_org_and_test() {
     if [ ! $scratch_org_username ]; then exit 1; fi
     #sfdx force:org:display --targetusername "$scratch_org_username"
     sfdx force:source:push --targetusername $scratch_org_username
@@ -333,7 +341,7 @@ deploy-to-production:
   # Delete a scratch org
   # Pass in the scratch_org_username
 
-  delete_scratch_org () {
+  function delete_scratch_org() {
     if [ ! $1 ]; then exit 1; fi
     sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername HUB_ORG_ALIAS --where "SignupUsername='$1'"
   }
@@ -343,7 +351,7 @@ deploy-to-production:
   # Function takes no arguments
   # Returns `true` or `false`
 
-  check_has_jest_tests () {
+  function check_has_jest_tests() {
     local hasJestTests=false
     for pkgDir in $(jq -r '.packageDirectories[].path' < sfdx-project.json)
     do
@@ -363,7 +371,7 @@ deploy-to-production:
   ## Should be called after `setup_lwc`.
   ## Uses `check_has_jest_tests` to know if there are actually any tests to run.
 
-  test_lwc () {
+  function test_lwc() {
     local hasJestTests=$(check_has_jest_tests)
     if [ $hasJestTests ]; then
       npm run test:unit
