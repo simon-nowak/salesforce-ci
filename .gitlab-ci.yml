@@ -118,6 +118,7 @@ deploy-to-sandbox:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
+      - $DEPLOY_SANDBOX_ON_EVERY_COMMIT == 'true'
   except:
     variables:
       - $SANDBOX_DISABLED
@@ -145,6 +146,7 @@ deploy-to-production:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
+      - $DEPLOY_PRODUCTION_ON_EVERY_COMMIT == 'true'
   except:
     variables:
       - $PRODUCTION_DISABLED
@@ -271,8 +273,8 @@ deploy-to-production:
   # Returns the package id for the given package name owned by the given dev hub.
 
   function get_package_id() {
-    local dev_hub_alias=$1
-    local package_name=$2
+    export local dev_hub_alias=$1
+    export local package_name=$2
     if [ ! $package_name ]; then
       package_name=$PACKAGE_NAME
     fi
@@ -286,7 +288,7 @@ deploy-to-production:
       echo "ERROR Package name not specified. Set the PACKAGE_NAME environment variable or specify a default package directory in sfdx-project.json."
       exit 1
     fi
-    echo $(sfdx force:package:list targetdevhubusername "$dev_hub_alias" --json | jq -r '.result[] | select(.Name == env.package_name) | .Id')
+    echo $(sfdx force:package:list --targetdevhubusername "$dev_hub_alias" --json | jq -r '.result[] | select(.Name == env.package_name) | .Id')
   }
 
 

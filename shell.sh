@@ -2,16 +2,13 @@
 
 test () {
 
-    npm init -y
+    export local dev_hub_alias=$1
+    export local package_name=$2
 
-    local org_alias=$1
-    local tmp=$(mktemp)
-    sfdx force:config:set defaultusername=$org_alias
-    jq '.scripts["test:apex"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10"' package.json > $tmp
-    mv $tmp package.json
+    local package_id=$(sfdx force:package:list --targetdevhubusername "$dev_hub_alias" --json | jq -r '.result[] | select(.Name == env.package_name) | .Id')
+
+    echo $package_id
 
 }
 
-test 'test-5ddsuc7ztawk@example.com'
-
-npm run test:apex
+test DevHub DreamHouse
