@@ -131,7 +131,9 @@ deploy-to-sandbox:
     - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
     - package_id=$(get_package_id DEVHUB $PACKAGE_NAME)
+    - echo "package_id=$package_id"
     - package_version_id=$(build_package_version DEVHUB $package_id)
+    - echo "package_version_id=$package_version_id"
     - authenticate $SANDBOX_AUTH_URL SANDBOX
     - install_package_version SANDBOX $package_version_id
     - populate_url_artifact SANDBOX
@@ -288,7 +290,12 @@ deploy-to-production:
       echo "ERROR Package name not specified. Set the PACKAGE_NAME environment variable or specify a default package directory in sfdx-project.json."
       exit 1
     fi
-    echo $(sfdx force:package:list --targetdevhubusername "$dev_hub_alias" --json | jq -r '.result[] | select(.Name == env.package_name) | .Id')
+    package_id=$(sfdx force:package:list --targetdevhubusername "$dev_hub_alias" --json | jq -r '.result[] | select(.Name == env.package_name) | .Id')
+    if [ ! $package_id ]; then
+      echo "ERROR We could not find an package with name '$package_name' owned by this Dev Hub org."
+      exit 1
+    fi
+    echo $package_id
   }
 
 
