@@ -442,7 +442,7 @@ deploy-to-production:
   # If there aren't any jest tests then npm would throw an error and fail the job,
   # so we skip running npm if there are no tests, essentially skipping them to avoid error.
 
-  function test_lwc() {
+  function test_lwc_jest() {
     local hasJestTests=$(check_has_jest_tests)
     if [ $hasJestTests ]; then
       npm run test:unit
@@ -473,7 +473,7 @@ deploy-to-production:
 
     if [ -n "$scriptValue" ]; then
       local tmp=$(mktemp)
-      jq '.scripts["test:apex"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10 --targetusername \"$org_alias\""' package.json > $tmp
+      jq '.scripts["test:apex"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10 --targetusername \"env.org_alias\""' package.json > $tmp
       mv $tmp package.json
     fi
 
