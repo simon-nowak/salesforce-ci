@@ -106,6 +106,7 @@ delete-scratch-org:
   script:
     - install_salesforce_cli
     - install_jq
+    - authenticate $DEVHUB_AUTH_URL DEVHUB
     - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
     - delete_scratch_org DEVHUB $scratch_org_username
 
