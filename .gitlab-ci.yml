@@ -443,7 +443,7 @@ deploy-to-production:
   }
 
 
-  # Runs `npm run test:unit` to execute LWC Jest tests.
+  # Runs `npm run test:lwc` to execute LWC Jest tests.
   # Function takes no arguments.
   # Should be called after `setup_lwc`.
   # Uses `check_has_jest_tests` to know if there are actually any tests to run.
@@ -453,7 +453,7 @@ deploy-to-production:
   function test_lwc_jest() {
     local hasJestTests=$(check_has_jest_tests)
     if [ $hasJestTests ]; then
-      npm run test:unit
+      npm run test:lwc
     else
       echo 'Skipping lwc tests, found no jest tests in any package directories'
     fi
