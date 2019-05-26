@@ -275,7 +275,7 @@ deploy-to-production:
 
 
   # Function to get SFDX Auth URL for an org.
-  # Don't expose the auth url to the logs.
+  # Don't expose the force:org:display to logs to avoid exposing sensitive information like access tokens.
   # Arguments:
   #     $1 = target org alias whose auth url to get
   # Returns the SFDX Auth URL for the given org.
@@ -284,9 +284,6 @@ deploy-to-production:
 
     local org_username=$1
     local debug=$(echo "[get_org_auth_url] org_username=$org_username" | tee /dev/stderr)
-
-    # Retrieve the SFDX Auth URL for the given org, output goes to logs (don't use --verbose to avoid exposing auth url)
-    debug=$(sfdx force:org:display --targetusername $org_username --json | tee /dev/stderr)
 
     # Parse the SFDX Auth URL for the given org
     output=$(sfdx force:org:display --verbose --targetusername $org_username --json)
