@@ -1,14 +1,20 @@
 #!/bin/bash
 
-test () {
+test() {
 
-    export local dev_hub_alias=$1
-    export local package_name=$2
-
-    local package_id=$(sfdx force:package:list --targetdevhubusername "$dev_hub_alias" --json | jq -r '.result[] | select(.Name == env.package_name) | .Id')
-
-    echo $package_id
-
+    local debug=$(echo "[check_has_jest_tests]" | tee /dev/stderr)
+    local hasJestTests=false
+    for pkgDir in $(jq -r '.packageDirectories[].path' < sfdx-project.json | tee /dev/stderr)
+    do
+      if [ -f $pkgDir ]; then
+        local fileCnt=$(find $pkgDir -type f -path "**/__tests__/*.test.js" | tee /dev/stderr | wc -l);
+        if [ $fileCnt -gt 0 ]; then
+          hasJestTests=true
+        fi
+      fi
+    done
+    echo $hasJestTests
 }
 
-test DevHub DreamHouse
+x=$(test)
+echo x=$x
