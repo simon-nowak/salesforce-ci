@@ -243,7 +243,7 @@ deploy-to-production:
       local tmp=$(mktemp)
       jq '.scripts["test:lwc"]="lwc-jest"' package.json > $tmp
       mv $tmp package.json
-      echo "[install_lwc_jest] add test:lwc script property to package.json"
+      echo "[install_lwc_jest] added test:lwc script property to package.json"
       cat package.json
     fi
 
@@ -344,8 +344,38 @@ deploy-to-production:
       exit 1
     fi
 
+    # Ensure sfdx-project.json has a package alias for this package
+    # Otherwise the force:package:version:create command complains
+    #debug=$(add_package_alias $package_name $package_id)
+
     # Send back the package id as the output from this command
     echo $package_id
+  }
+
+
+  # Function to ensure sfdx-project.json has a package alias entry for the package id.
+  # Arguments:
+  #     $1 = package name, the "packageAlias" to set
+  #     $2 = package id, the value for the package alias
+
+  function add_package_alias() {
+
+    local package_name=$1
+    local package_id=$2
+
+    # Check if the alias property in sfdx-project.json contains key for package name
+    cat sfdx-project.json
+    local packageAlias=$(jq -r '.packageAliases["'$package_name'"]' < sfdx-project.json)
+
+    # If no package alias, then add one
+    if [ -n "$packageAlias" ]; then
+      local tmp=$(mktemp)
+      jq '.packageAliases["'$package_name'"]="'$package_id'"' sfdx-project.json > $tmp
+      mv $tmp sfdx-project.json
+      echo "[add_package_alias] added package alias property to sfdx-project.json"
+      cat sfdx-project.json
+    fi
+
   }
 
 
@@ -381,10 +411,20 @@ deploy-to-production:
   function build_package_version() {
 
     local devhub_username=$1
-    local package_id=$2
+    export local package_id=$2
     local debug=$(echo "[build_package_version] devhub_username=$devhub_username, package_id=$package_id" | tee /dev/stderr)
 
-    local output=$(sfdx force:package:version:create --package $package_id --installationkeybypass --wait 10 --json --targetdevhubusername $devhub_username | tee /dev/stderr)
+    # Determine the package name from the given package id
+    # so can lookup up the package path in match package direcotry entry in sfdx-project.json
+    local output=$(sfdx force:package:list -v $devhub_username --json | tee /dev/stderr)
+    export local package_name=$(jq -r '.result[] | select(.Id == env.package_id) | .Name' <<< $output)
+
+    # Get the source path for the package directory to use with the force:package:version:create command
+    local output=$(cat sfdx-project.json | tee /dev/stderr)
+    local package_path=$(jq -r '.packageDirectories[] | select(.package == env.package_name) | .path' <<< $output)
+
+    # Create a new package version
+    local output=$(sfdx force:package:version:create --package $package_id --path $package_path --installationkeybypass --wait 10 --json --targetdevhubusername $devhub_username | tee /dev/stderr)
     local subscriber_package_version_id=$(jq -r '.result.SubscriberPackageVersionId' <<< $output)
 
     if [ -z "$subscriber_package_version_id" ]; then
