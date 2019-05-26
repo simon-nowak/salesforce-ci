@@ -49,8 +49,8 @@ deploy-scratch-org:
 
 test-scratch-lwc:
   stage: test-scratch
-  only:
-    variables:
+  #only:
+    #variables:
       #- $CI_COMMIT_REF_NAME == 'master'
       #- $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
