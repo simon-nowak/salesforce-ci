@@ -669,13 +669,16 @@ deploy-to-production:
     export local orgname=$2
     echo "Orgname $orgname" >&2
 
-    # Create scratch org and grab its new username
-    #local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 30 --json" && (echo $cmd >&2)
-    local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --wait 10 --durationdays 30 --json orgName=$orgname edition=Developer" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq '.' >&2)
-    scratch_org_username="$(jq -r '.result.username' <<< $output)"
+    local usernames=$(get_scratch_org_usernames $devhub_username $orgname)
+    # if [ ! $local_usernames ]; then
 
+      # Create scratch org and grab its new username
+      #local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 30 --json" && (echo $cmd >&2)
+      local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --wait 10 --durationdays 30 --json orgName=$orgname edition=Developer" && (echo $cmd >&2)
+      local output=$($cmd) && (echo $output | jq '.' >&2)
+      scratch_org_username="$(jq -r '.result.username' <<< $output)"
 
+    # fi
 
     # TROUBLESHOOT
     local usernames=$(get_scratch_org_usernames $devhub_username $orgname)
@@ -779,12 +782,12 @@ deploy-to-production:
 
     echo "Org names"
     echo $2
-    local usernames=$(get_scratch_org_usernames $devhub_username $scratch_org_name)
+    local usernames=$(get_scratch_org_usernames $devhub_username $scratch_org_namegi)
 
     echo "Usernames"
     echo $usernames
 
-    while read -r scratch_org_username; do
+    for scratch_org_username in $usernames; do
 
       echo "scratch_org_username=$scratch_org_username" >&2
 
@@ -796,7 +799,7 @@ deploy-to-production:
       local cmd="sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername $devhub_username --where "'"SignupUsername='$scratch_org_username'"'" --json" && (echo $cmd >&2)
       local output=$($cmd) && (echo $output | jq '.' >&2)
 
-    done <<< "$usernames"
+    done
 
   }
 
