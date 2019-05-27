@@ -123,8 +123,6 @@ delete-scratch-org:
       - $SCRATCH_DISABLED
   when: manual
   allow_failure: true
-  dependencies:
-    - deploy-scratch-org
   script:
     - install_salesforce_cli
     - install_jq
