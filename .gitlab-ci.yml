@@ -699,6 +699,8 @@ deploy-to-production:
 
   function get_scratch_org_usernames() {
 
+    echo "GET SCRATCH ORG USERNAMES" > &2
+
     local devhub=$1
     local orgname=$2
 
@@ -767,6 +769,8 @@ deploy-to-production:
 
   function delete_scratch_orgs() {
 
+    echo "DELETE SCRATCH ORG"
+
 
     echo "Delete scratch orgs"
 
@@ -782,7 +786,7 @@ deploy-to-production:
 
     echo "Org names"
     echo $2
-    local usernames=$(get_scratch_org_usernames $devhub_username $scratch_org_namegi)
+    local usernames=$(get_scratch_org_usernames $devhub_username $scratch_org_name)
 
     echo "Usernames"
     echo $usernames
