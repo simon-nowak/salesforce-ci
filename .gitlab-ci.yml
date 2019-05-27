@@ -699,7 +699,7 @@ deploy-to-production:
 
   function get_scratch_org_usernames() {
 
-    echo "GET SCRATCH ORG USERNAMES" > &2
+    echo "GET SCRATCH ORG USERNAMES" >&2
 
     local devhub=$1
     local orgname=$2
