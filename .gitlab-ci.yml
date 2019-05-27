@@ -110,8 +110,8 @@ test-scratch-apex:
       - $SCRATCH_DISABLED
       - $TEST_DISABLED
   allow_failure: false
-  dependencies:
-    - deploy-scratch-org
+  # dependencies:
+  #   - deploy-scratch-org
   script:
     - install_salesforce_cli
     - install_jq
@@ -343,17 +343,16 @@ deploy-to-production:
   # We leverage the script property `test:apex` in package.json to provide developers a "hook"
   # to control exactly how they want their apex test to be executed.
   # Arguments:
-  #     $1 = org alias
+  #     $1 = devhub username or alias
+  #     $2 = org name property
 
   function test_apex() {
+    local devhub=$1
+    local orgname=$2
+    local usernames=$(get_scratch_org_usernames $devhub $orgname)
+    if [ ! $usernames ]; then echo "There are no scratch orgs for $orgname"; exit 1; fi
+    local username=$(echo $usernames | awk '{print $1;}')
 
-    local org_username=$1
-    echo "org_username=$org_username" >&2
-
-    if [ ! $org_username ]; then
-      echo "ERROR No org username provided to 'test_apex' function" >&2
-      exit 1;
-    fi
 
     # Create a default package.json if file doesn't exist
     if [ ! -f "package.json" ]; then
@@ -377,7 +376,7 @@ deploy-to-production:
     # will operate on the correct environment.
     # Afterwards, restore the original default username, just in case it was different.
     local old_org_username=$(jq -r '.result[].value' <<< $(sfdx force:config:get defaultusername --json))
-    sfdx force:config:set defaultusername=$org_username
+    sfdx force:config:set defaultusername=$username
     npm run test:apex
     sfdx force:config:set defaultusername=$old_org_username
 
