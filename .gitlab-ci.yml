@@ -697,7 +697,7 @@ deploy-to-production:
 
     export local orgname=$1
 
-    local usernames=$(sfdx force:org:list --json | jq -r ".result.scratchOrgs[] | select(.orgName==env.orgName) | .username")
+    local usernames=$(sfdx force:org:list --json | jq -r ".result.scratchOrgs[] | select(.orgName==env.orgname) | .username")
 
 
     # TROUBLESHOOTING
