@@ -448,7 +448,7 @@ deploy-to-production:
     local limit=$(jq -r '.result[] | select(.name == env.limit_name)' <<< $limits)
 
     # If a limit was found, then check if we are within it
-    if [ ! -z $limit ]; then
+    if [ -n "$limit" ]; then
 
       local limit_max=$(jq -r '.max' <<< $limit)
       local limit_rem=$(jq -r '.remaining' <<< $limit)
