@@ -130,7 +130,7 @@ test-scratch-apex:
 # Deletes the scratch org.
 ####################################################
 delete-scratch-org:
-  stage: deploy-scratch
+  stage: test-scratch
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
@@ -172,6 +172,8 @@ deploy-to-sandbox:
     - authenticate $DEVHUB_AUTH_URL DEVHUB
     - assert_within_limits DEVHUB Package2VersionCreates
     - package_id=$(get_package_id DEVHUB $PACKAGE_NAME)
+    - echo $package_id > PACKAGE_ID.txt
+    - add_package_alias DEVHUB $package_id
     - package_version_id=$(build_package_version DEVHUB $package_id)
     - echo $package_version_id > SUBSCRIBER_PACKAGE_VERSION_ID.txt
     - authenticate $SANDBOX_AUTH_URL SANDBOX
@@ -179,6 +181,7 @@ deploy-to-sandbox:
     - populate_url_artifact SANDBOX
   artifacts:
     paths:
+      - PACKAGE_ID.txt
       - SUBSCRIBER_PACKAGE_VERSION_ID.txt
       - ENVIRONMENT.html
 
@@ -206,8 +209,10 @@ deploy-to-production:
   script:
     - install_salesforce_cli
     - install_jq
+    - package_id=$(cat PACKAGE_ID.txt)
     - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
     - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - add_package_alias DEVHUB $package_id
     - promote_package_version DEVHUB $package_version_id
     - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL fi
     - authenticate $PRODUCTION_AUTH_URL PRODUCTION
@@ -519,10 +524,6 @@ deploy-to-production:
     echo "package_name=$package_name" >&2
     echo "package_id=$package_id" >&2
 
-    # Ensure sfdx-project.json has a package alias for this package
-    # Otherwise the force:package:version:create command complains
-    #add_package_alias $package_name $package_id)
-
     # Send back the package id as the output from this command
     echo $package_id
   }
@@ -530,13 +531,22 @@ deploy-to-production:
 
   # Function to ensure sfdx-project.json has a package alias entry for the package id.
   # Arguments:
-  #     $1 = package name, the "packageAlias" to set
+  #     $1 = dev hub alias that owns the package id
   #     $2 = package id, the value for the package alias
 
   function add_package_alias() {
 
-    local package_name=$1
-    local package_id=$2
+    export local devhub_username=$1
+    export local package_id=$2
+
+    # Retrieve package name for package id
+    local cmd="sfdx force:package:list --targetdevhubusername $devhub_username --json" && (echo $cmd >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
+    package_name=$(jq -r '.result[] | select(.Id == env.package_id) | .Name' <<< $output)
+    if [ -z "$package_name" ]; then
+      echo "ERROR We could not find a package with id '$package_id' owned by this Dev Hub org." >&2
+      exit 1
+    fi
 
     # Check if the alias property in sfdx-project.json contains key for package name
     cat sfdx-project.json >&2
@@ -567,19 +577,8 @@ deploy-to-production:
     echo "devhub_username=$devhub_username" >&2
     echo "package_id=$package_id" >&2
 
-    # Determine the package name from the given package id
-    # so can lookup up the package path in match package direcotry entry in sfdx-project.json
-    local cmd="sfdx force:package:list -v $devhub_username --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq '.' >&2)
-    export local package_name=$(jq -r '.result[] | select(.Id == env.package_id) | .Name' <<< $output)
-
-    # Get the source path for the package directory to use with the force:package:version:create command
-    local output=$(cat sfdx-project.json) && (echo $output >&2)
-    local package_path=$(jq -r '.packageDirectories[] | select(.package == env.package_name) | .path' <<< $output)
-    echo "package_path=$package_path" >&2
-
     # Create a new package version
-    local cmd="sfdx force:package:version:create --targetdevhubusername $devhub_username --package $package_id --path $package_path --installationkeybypass --wait 10 --json" && (echo $cmd >&2)
+    local cmd="sfdx force:package:version:create --targetdevhubusername $devhub_username --package $package_id --installationkeybypass --wait 10 --json" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
     local subscriber_package_version_id=$(jq -r '.result.SubscriberPackageVersionId' <<< $output)
 
