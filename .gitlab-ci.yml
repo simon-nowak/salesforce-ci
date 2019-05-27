@@ -415,7 +415,7 @@ deploy-to-production:
     echo "org_username=$org_username" >&2
 
     # Parse the SFDX Auth URL for the given org
-    local cmd="sfdx force:org:display --verbose --targetusername \"$org_username\" --json" && (echo $cmd >&2)
+    local cmd="sfdx force:org:display --verbose --targetusername $org_username --json" && (echo $cmd >&2)
     local output=$($cmd)
     org_auth_url="$(jq -r '.result.sfdxAuthUrl' <<< $output)"
 
@@ -526,7 +526,7 @@ deploy-to-production:
     local org_username=$1
     echo "org_username=$org_username" >&2
 
-    local cmd="sfdx force:limits:api:display --targetusername \"$org_username\" --json" && (echo $cmd >&2)
+    local cmd="sfdx force:limits:api:display --targetusername $org_username --json" && (echo $cmd >&2)
     local limits=$($cmd) && (echo $limits | jq >&2)
     local dso=$(jq -r '.result[] | select(.name == "DailyScratchOrgs")' <<< $limits)
     local dsomax=$(jq -r '.max' <<< $dso)
