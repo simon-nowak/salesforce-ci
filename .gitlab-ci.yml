@@ -113,7 +113,7 @@ test-scratch-apex:
 
 
 delete-scratch-org:
-  stage: delete-scratch
+  stage: deploy-scratch
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
@@ -122,7 +122,7 @@ delete-scratch-org:
     variables:
       - $SCRATCH_DISABLED
   when: manual
-  allow_failure: false
+  allow_failure: true
   dependencies:
     - deploy-scratch-org
   script:
