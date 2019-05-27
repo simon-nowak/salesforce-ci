@@ -664,16 +664,23 @@ deploy-to-production:
 
   function deploy_scratch_org() {
     local devhub=$1
+    echo $devhub >&2
     local orgname=$2
-    local usernames=get_scratch_org_usernames $devhub $orgname
+    echo $orgname >&2
+    local usernames=$(get_scratch_org_usernames $devhub $orgname)
+    echo $usernames >&2
     if [ ! $usernames ]; then
+      echo "Creating" >&2
       assert_within_limits $devhub DailyScratchOrgs
       local username=$(create_scratch_org $devhub $orgname)
     else
       local username=$(echo $usernames | awk '{print $1;}')
     fi
+    echo $username >&2
     auth_url=$(get_org_auth_url $username)
+    echo "Pushing" >&2
     push_to_scratch_org $username
+    echo "Populating" >&2
     populate_url_artifact $username
   }
 
