@@ -81,8 +81,8 @@ deploy-scratch-org:
     - scratch_org_auth_url=$(get_org_auth_url $scratch_org_username)
     - echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
     - echo $scratch_org_auth_url > SCRATCH_ORG_AUTH_URL.txt
-    - push_to_scratch_org "$scratch_org_username"
-    - populate_url_artifact "$scratch_org_username"
+    - push_to_scratch_org $scratch_org_username
+    - populate_url_artifact $scratch_org_username
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
@@ -472,7 +472,7 @@ deploy-to-production:
 
     # Retrieve package id for package name
     local cmd="sfdx force:package:list --targetdevhubusername \"$devhub_username\" --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
     package_id=$(jq -r '.result[] | select(.Name == env.package_name) | .Id' <<< $output)
     if [ ! $package_id ]; then
       echo "ERROR We could not find a package with name '$package_name' owned by this Dev Hub org." >&2
@@ -527,7 +527,7 @@ deploy-to-production:
     echo "org_username=$org_username" >&2
 
     local cmd="sfdx force:limits:api:display --targetusername $org_username --json" && (echo $cmd >&2)
-    local limits=$($cmd) && (echo $limits | jq >&2)
+    local limits=$($cmd) && (echo $limits | jq '.' >&2)
     local dso=$(jq -r '.result[] | select(.name == "DailyScratchOrgs")' <<< $limits)
     local dsomax=$(jq -r '.max' <<< $dso)
     local dsorem=$(jq -r '.remaining' <<< $dso)
@@ -557,7 +557,7 @@ deploy-to-production:
     # Determine the package name from the given package id
     # so can lookup up the package path in match package direcotry entry in sfdx-project.json
     local cmd="sfdx force:package:list -v $devhub_username --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
     export local package_name=$(jq -r '.result[] | select(.Id == env.package_id) | .Name' <<< $output)
 
     # Get the source path for the package directory to use with the force:package:version:create command
@@ -567,7 +567,7 @@ deploy-to-production:
 
     # Create a new package version
     local cmd="sfdx force:package:version:create --targetdevhubusername $devhub_username --package $package_id --path $package_path --installationkeybypass --wait 10 --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
     local subscriber_package_version_id=$(jq -r '.result.SubscriberPackageVersionId' <<< $output)
 
     if [ -z "$subscriber_package_version_id" ]; then
@@ -591,7 +591,7 @@ deploy-to-production:
     echo "org_username=$org_username" >&2
     echo "package_version_id=$package_version_id" >&2
     local cmd="sfdx force:package:install --targetusername $org_username --package $package_version_id --wait 10 --publishwait 10 --noprompt --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
   }
 
 
@@ -607,7 +607,7 @@ deploy-to-production:
     echo "devhub_username=$devhub_username" >&2
     echo "package_version_id=$package_version_id" >&2
     local cmd="sfdx force:package:version:promote --targetdevhubusername $devhub_username --package $package_version_id --noprompt --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
   }
 
 
@@ -628,7 +628,7 @@ deploy-to-production:
     fi
 
     local cmd="sfdx force:org:open --targetusername $org_username --urlonly --json" && (echo $cmd >&2)
-    local output=$($cmd) # && (echo $output | jq >&2)
+    local output=$($cmd) # && (echo $output | jq '.' >&2)
     local url=$(jq -r ".result.url" <<< $output)
 
     local environment_html="<script>window.onload=function(){window.location.href=\"$url\"}</script>"
@@ -719,7 +719,7 @@ deploy-to-production:
     fi
 
     local cmd="sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername $devhub_username --where "'"SignupUsername='$scratch_org_username'"'" --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
 
   }
 
