@@ -214,7 +214,7 @@ deploy-to-production:
     - authenticate $DEVHUB_AUTH_URL DEVHUB
     - add_package_alias DEVHUB $package_id
     - promote_package_version DEVHUB $package_version_id
-    - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL fi
+    - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL; fi
     - authenticate $PRODUCTION_AUTH_URL PRODUCTION
     - install_package_version PRODUCTION $package_version_id
     - populate_url_artifact PRODUCTION
