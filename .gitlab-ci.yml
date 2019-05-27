@@ -678,9 +678,9 @@ deploy-to-production:
 
 
     # TROUBLESHOOT
-    local usernames=$(get_scratch_org_usernames $orgname)
+    local usernames=$(get_scratch_org_usernames $devhub_username $orgname)
     echo "Usernames" >&2
-    echo $usernames >$2
+    echo $usernames >&2
 
 
     # Return the scratch org username
@@ -690,20 +690,23 @@ deploy-to-production:
 
   # Get scratch org usernames
   # Arguments:
-  #     $1 = org name for the scratch orgs
+  #     $1 = username or alias for the dev hub
+  #     $2 = org name value for the scratch orgs
   # Returns one or more usernames (newline-separated)
 
   function get_scratch_org_usernames() {
 
-    export local orgname=$1
+    local devhub=$1
+    local orgname=$2
 
-    sfdx force:org:list --json --noprompt >&2
-
-    local usernames=$(sfdx force:org:list --json --noprompt | jq -r ".result.scratchOrgs[] | select(.orgName==env.orgname) | .username")
-
+    local result=$(sfdx force:data:soql:query --targetusername $devhub --query "SELECT SignupUsername FROM ScratchOrgInfo WHERE OrgName='$orgname'" --json)
 
     # TROUBLESHOOTING
-    echo "get_scratch_org_usernames" >&2
+    echo $result >&2
+
+    local usernames=$(jq -r ".result.records|map(.SignupUsername)|.[]" <<< $result)
+
+    # TROUBLESHOOTING
     echo $usernames >&2
 
     echo $usernames
@@ -757,7 +760,7 @@ deploy-to-production:
   # Delete all scratch orgs associated with a ref
   # Arguments
   #     $1 = dev hub username
-  #     $2 = ref name
+  #     $2 = org name property of scratch orgs to delete
 
   function delete_scratch_orgs() {
 
@@ -767,13 +770,16 @@ deploy-to-production:
     local devhub_username=$1
     echo "devhub_username=$devhub_username" >&2
 
+    local scratch_org_name=$2
+
     if [ ! $devhub_username ]; then
       echo "ERROR No dev hub org username provided to 'delete_scratch_orgs' function" >&2
       exit 1;
     fi
 
-    echo "Ref name $2"
-    local usernames=$(get_scratch_org_usernames $2)
+    echo "Org names"
+    echo $2
+    local usernames=$(get_scratch_org_usernames $devhub_username $scratch_org_name)
 
     echo "Usernames"
     echo $usernames
