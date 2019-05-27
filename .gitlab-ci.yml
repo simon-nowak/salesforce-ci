@@ -671,7 +671,7 @@ deploy-to-production:
 
     # Create scratch org and grab its new username
     #local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 30 --json" && (echo $cmd >&2)
-    local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --wait 10 --durationdays 30 --json orgName=env.orgname edition=Developer" && (echo $cmd >&2)
+    local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --wait 10 --durationdays 30 --json orgName=$orgname edition=Developer" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
 
