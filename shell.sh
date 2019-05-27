@@ -2,19 +2,13 @@
 
 test() {
 
-    local debug=$(echo "[check_has_jest_tests]" | tee /dev/stderr)
-    local hasJestTests=false
-    for pkgDir in $(jq -r '.packageDirectories[].path' < sfdx-project.json | tee /dev/stderr)
-    do
-      if [ -f $pkgDir ]; then
-        local fileCnt=$(find $pkgDir -type f -path "**/__tests__/*.test.js" | tee /dev/stderr | wc -l);
-        if [ $fileCnt -gt 0 ]; then
-          hasJestTests=true
-        fi
-      fi
-    done
-    echo $hasJestTests
+    local username="DevHub"
+    local object="Account"
+    local name="CD656092"
+    local cmd="sfdx force:data:record:get --sobjecttype $object --targetusername $username --where "'"AccountNumber='$name'"'" --json" && (echo $cmd >&2)
+    local output=$($cmd) && (echo $output | jq >&2)
+    echo $(jq -r '.result.Id' <<< $output)
 }
 
-x=$(test)
-echo x=$x
+x=$(test foo bar)
+echo result=$x

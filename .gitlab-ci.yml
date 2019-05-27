@@ -181,7 +181,7 @@ deploy-to-production:
     - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
     - authenticate $DEVHUB_AUTH_URL DEVHUB
     - promote_package_version DEVHUB $package_version_id
-    - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL ; fi
+    - 'if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL ; fi'
     - authenticate $PRODUCTION_AUTH_URL PRODUCTION
     - install_package_version PRODUCTION $package_version_id
     - populate_url_artifact PRODUCTION
