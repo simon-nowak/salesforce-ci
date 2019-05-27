@@ -393,7 +393,7 @@ deploy-to-production:
 
     local file=$(mktemp)
     echo $org_auth_url > $file
-    local cmd="sfdx force:auth:sfdxurl:store --sfdxurlfile \"$file\" --setalias \"$alias_to_set\" --json" && (echo $cmd >&2)
+    local cmd="sfdx force:auth:sfdxurl:store --sfdxurlfile $file --setalias $alias_to_set --json" && (echo $cmd >&2)
     local output=$($cmd)
 
     sfdx force:config:set defaultusername=$alias_to_set
