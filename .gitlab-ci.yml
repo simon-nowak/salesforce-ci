@@ -668,7 +668,7 @@ deploy-to-production:
     local usernames=get_scratch_org_usernames $devhub $orgname
     if [ ! $usernames ]; then
       assert_within_limits $devhub DailyScratchOrgs
-      local username=create_scratch_org $devhub $orgname
+      local username=$(create_scratch_org $devhub $orgname)
     else
       local username=$(echo $usernames | awk '{print $1;}')
     fi
