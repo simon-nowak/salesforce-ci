@@ -446,14 +446,22 @@ deploy-to-production:
     local cmd="sfdx force:limits:api:display --targetusername $org_username --json" && (echo $cmd >&2)
     local limits=$($cmd) && (echo $limits | jq '.' >&2)
     local limit=$(jq -r '.result[] | select(.name == env.limit_name)' <<< $limits)
-    local limit_max=$(jq -r '.max' <<< $limit)
-    local limit_rem=$(jq -r '.remaining' <<< $limit)
 
-    if [[ ( -z $limit_rem ) || ( $limit_rem -le 0 ) ]]; then
-      echo "ERROR Max of $limit_max reached for limit $limit_name" >&2
-      exit 1
+    # If a limit was found, then check if we are within it
+    if [ ! -z $limit ]; then
+
+      local limit_max=$(jq -r '.max' <<< $limit)
+      local limit_rem=$(jq -r '.remaining' <<< $limit)
+
+      if [[ ( -z $limit_rem ) || ( $limit_rem -le 0 ) ]]; then
+        echo "ERROR Max of $limit_max reached for limit $limit_name" >&2
+        exit 1
+      else
+        echo "$limit_rem of $limit_max remaining for limit $limit_name" >&2
+      fi
+
     else
-      echo "$limit_rem of $limit_max remaining for limit $limit_name" >&2
+      echo "No limits found for name $limit_name" >&2
     fi
   }
 
