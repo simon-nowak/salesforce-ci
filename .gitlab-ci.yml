@@ -76,7 +76,7 @@ deploy-scratch-org:
     - install_salesforce_cli
     - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
-    - check_daily_scratch_orgs DEVHUB
+    - assert_within_limits DEVHUB DailyScratchOrgs
     - scratch_org_username=$(create_scratch_org DEVHUB)
     - scratch_org_auth_url=$(get_org_auth_url $scratch_org_username)
     - echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
@@ -170,6 +170,7 @@ deploy-to-sandbox:
     - install_salesforce_cli
     - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - assert_within_limits DEVHUB Package2VersionCreates
     - package_id=$(get_package_id DEVHUB $PACKAGE_NAME)
     - package_version_id=$(build_package_version DEVHUB $package_id)
     - echo $package_version_id > SUBSCRIBER_PACKAGE_VERSION_ID.txt
@@ -429,6 +430,34 @@ deploy-to-production:
   }
 
 
+  # Checks a specific limit for the given org
+  # and exits with error if none remaining.
+  # Arguments:
+  #     $1 = target org username whose limits to check
+  #     $2 = name of the limit to check (e.g. "DailyScratchOrgs" or "Package2VersionCreates")
+
+  function assert_within_limits() {
+
+    export local org_username=$1
+    export local limit_name=$2
+    echo "org_username=$org_username" >&2
+    echo "limit_name=$limit_name" >&2
+
+    local cmd="sfdx force:limits:api:display --targetusername $org_username --json" && (echo $cmd >&2)
+    local limits=$($cmd) && (echo $limits | jq '.' >&2)
+    local limit=$(jq -r '.result[] | select(.name == env.limit_name)' <<< $limits)
+    local limit_max=$(jq -r '.max' <<< $dso)
+    local limit_rem=$(jq -r '.remaining' <<< $dso)
+
+    if [[ ( -z $limit_rem ) || ( $limit_rem -le 0 ) ]]; then
+      echo "ERROR Max of $limit_max reached for limit $limit_name" >&2
+      exit 1
+    else
+      echo "$limit_rem of $limit_max remaining for limit $limit_name" >&2
+    fi
+  }
+
+
   # Function to get package name and ID.
   # Arguments:
   #     $1 = dev hub alias
@@ -514,30 +543,6 @@ deploy-to-production:
       cat sfdx-project.json >&2
     fi
 
-  }
-
-
-  # Function to check whether there are daily scratch orgs left.
-  # Arguments:
-  #     $1 = target org username whose limits to check
-
-  function check_daily_scratch_orgs() {
-
-    local org_username=$1
-    echo "org_username=$org_username" >&2
-
-    local cmd="sfdx force:limits:api:display --targetusername $org_username --json" && (echo $cmd >&2)
-    local limits=$($cmd) && (echo $limits | jq '.' >&2)
-    local dso=$(jq -r '.result[] | select(.name == "DailyScratchOrgs")' <<< $limits)
-    local dsomax=$(jq -r '.max' <<< $dso)
-    local dsorem=$(jq -r '.remaining' <<< $dso)
-
-    if [[ ( -z $dsorem ) || ( $dsorem -le 0 ) ]]; then
-      echo "ERROR Limit of $dsomax Daily Scratch Orgs reached" >&2
-      exit 1
-    else
-      echo "$dsorem of $dsomax Daily Scratch Orgs remaining - OK to proceed" >&2
-    fi
   }
 
 
