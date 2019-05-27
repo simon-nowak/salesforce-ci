@@ -508,7 +508,7 @@ deploy-to-production:
     fi
 
     # Retrieve package id for package name
-    local cmd="sfdx force:package:list --targetdevhubusername \"$devhub_username\" --json" && (echo $cmd >&2)
+    local cmd="sfdx force:package:list --targetdevhubusername $devhub_username --json" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
     package_id=$(jq -r '.result[] | select(.Name == env.package_name) | .Id' <<< $output)
     if [ ! $package_id ]; then
