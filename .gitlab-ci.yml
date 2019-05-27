@@ -744,6 +744,9 @@ deploy-to-production:
 
   function delete_scratch_orgs() {
 
+
+    echo "Delete scratch orgs"
+
     local devhub_username=$1
     echo "devhub_username=$devhub_username" >&2
 
@@ -752,7 +755,11 @@ deploy-to-production:
       exit 1;
     fi
 
+    echo "Ref name $2"
     local usernames=$(get_scratch_org_usernames $2)
+
+    echo "Usernames"
+    echo $usernames
 
     while read -r scratch_org_username; do
 
