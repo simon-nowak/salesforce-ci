@@ -76,13 +76,14 @@ deploy-scratch-org:
     - install_salesforce_cli
     - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
-    - assert_within_limits DEVHUB DailyScratchOrgs
-    - scratch_org_username=$(create_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG")
-    - scratch_org_auth_url=$(get_org_auth_url $scratch_org_username)
-    - echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
-    - echo $scratch_org_auth_url > SCRATCH_ORG_AUTH_URL.txt
-    - push_to_scratch_org $scratch_org_username
-    - populate_url_artifact $scratch_org_username
+    - deploy_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
+    # - assert_within_limits DEVHUB DailyScratchOrgs
+    # - scratch_org_username=$(create_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG")
+    # - scratch_org_auth_url=$(get_org_auth_url $scratch_org_username)
+    # - echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
+    # - echo $scratch_org_auth_url > SCRATCH_ORG_AUTH_URL.txt
+    # - push_to_scratch_org $scratch_org_username
+    # - populate_url_artifact $scratch_org_username
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
     url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
@@ -655,6 +656,29 @@ deploy-to-production:
   }
 
 
+  # Deploy to a scratch org, creating it first if necessary
+  # Arguments:
+  #     $1 = dev hub alias
+  #     $2 = org name for the scratch org
+  # Returns the signin URL of the scratch org
+
+  function deploy_scratch_org() {
+    local devhub=$1
+    local orgname=$2
+    local usernames=get_scratch_org_usernames $devhub $orgname
+    if [ ! $usernames ]; then
+      assert_within_limits $devhub DailyScratchOrgs
+      local username=create_scratch_org $devhub $orgname
+    else
+      local username=$(echo $usernames | awk '{print $1;}')
+    fi
+    auth_url=$(get_org_auth_url $username)
+    push_to_scratch_org $username
+    populate_url_artifact $username
+  }
+
+
+
   # Create a scratch org.
   # Arguments:
   #     $1 = dev hub alias
@@ -662,31 +686,11 @@ deploy-to-production:
   # Returns the newly-created scratch org username.
 
   function create_scratch_org() {
-
-    local devhub_username=$1
-    echo "devhub_username=$devhub_username" >&2
-
+    local devhub=$1
     export local orgname=$2
-    echo "Orgname $orgname" >&2
-
-    local usernames=$(get_scratch_org_usernames $devhub_username $orgname)
-    # if [ ! $local_usernames ]; then
-
-      # Create scratch org and grab its new username
-      #local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 30 --json" && (echo $cmd >&2)
-      local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --wait 10 --durationdays 30 --json orgName=$orgname edition=Developer" && (echo $cmd >&2)
-      local output=$($cmd) && (echo $output | jq '.' >&2)
-      scratch_org_username="$(jq -r '.result.username' <<< $output)"
-
-    # fi
-
-    # TROUBLESHOOT
-    local usernames=$(get_scratch_org_usernames $devhub_username $orgname)
-    echo "Usernames" >&2
-    echo $usernames >&2
-
-
-    # Return the scratch org username
+    local cmd="sfdx force:org:create --targetdevhubusername $devhub --wait 10 --durationdays 30 --json orgName=$orgname edition=Developer" && (echo $cmd >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
+    scratch_org_username="$(jq -r '.result.username' <<< $output)"
     echo $scratch_org_username
   }
 
