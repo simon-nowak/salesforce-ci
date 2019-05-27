@@ -8,8 +8,5 @@
             "default": true
         }
     ],
-    "packageAliases": {
-        "gitlabtest": "0Ho2E000000GmhZSAS"
-    },
     "sourceApiVersion": "45.0"
 }
