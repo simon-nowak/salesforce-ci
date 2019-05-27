@@ -666,13 +666,26 @@ deploy-to-production:
     local devhub_username=$1
     echo "devhub_username=$devhub_username" >&2
 
+    export local orgname="scratch/$CI_COMMIT_REF_SLUG"
+
     # Create scratch org and grab its new username
-    local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 30 --json" && (echo $cmd >&2)
+    #local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 30 --json" && (echo $cmd >&2)
+    local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --wait 10 --durationdays 30 --json orgName=env.orgname edition=Developer" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
 
     # Return the scratch org username
     echo $scratch_org_username
+  }
+
+
+  # Get scratch org usernames
+  # Returns one or more usernames (newline-separated)
+
+  function get_scratch_org_usernames() {
+    export local orgname="scratch/$CI_COMMIT_REF_SLUG"
+    local usernames=$(sfdx force:org:list --json | jq -r ".result.scratchOrgs[] | select(.orgName==env.orgName) | .username")
+    echo $usernames
   }
 
 
