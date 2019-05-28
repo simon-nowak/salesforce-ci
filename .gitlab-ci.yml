@@ -167,7 +167,7 @@ deploy-to-sandbox:
   allow_failure: false
   environment:
     name: sandbox
-    url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
+    url: https://test.salesforce.com
   script:
     - install_salesforce_cli
     - install_jq
@@ -180,12 +180,10 @@ deploy-to-sandbox:
     - echo $package_version_id > SUBSCRIBER_PACKAGE_VERSION_ID.txt
     - authenticate $SANDBOX_AUTH_URL SANDBOX
     - install_package_version SANDBOX $package_version_id
-    - populate_scratch_org_redirect_html SANDBOX
   artifacts:
     paths:
       - PACKAGE_ID.txt
       - SUBSCRIBER_PACKAGE_VERSION_ID.txt
-      - ENVIRONMENT.html
 
 
 ####################################################
@@ -207,7 +205,7 @@ deploy-to-production:
     - deploy-to-sandbox
   environment:
     name: production
-    url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
+    url: https://login.salesforce.com
   script:
     - install_salesforce_cli
     - install_jq
@@ -219,10 +217,6 @@ deploy-to-production:
     - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL; fi
     - authenticate $PRODUCTION_AUTH_URL PRODUCTION
     - install_package_version PRODUCTION $package_version_id
-    - populate_scratch_org_redirect_html PRODUCTION
-  artifacts:
-    paths:
-      - ENVIRONMENT.html
 
 
 .sfdx_helpers: &sfdx_helpers |
