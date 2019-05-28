@@ -215,7 +215,7 @@ deploy-production:
   when: manual
   allow_failure: false
   dependencies:
-    - deploy-to-sandbox  # TODO: Depend on packaging
+    - deploy-sandbox  # TODO: Depend on packaging
   environment:
     name: production
     url: https://login.salesforce.com
