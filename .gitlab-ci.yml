@@ -77,7 +77,7 @@ deploy-scratch-org:
   script:
     - install_salesforce_cli
     - install_jq
-    - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - authenticate DEVHUB $DEVHUB_AUTH_URL
     - delete_scratch_orgs DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
     - deploy_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
   environment:
@@ -120,7 +120,7 @@ test-scratch-apex:
     - install_jq
     - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
     - scratch_org_auth_url=$(cat SCRATCH_ORG_AUTH_URL.txt)
-    - authenticate $scratch_org_auth_url $scratch_org_username
+    - authenticate $scratch_org_username $scratch_org_auth_url
     - test_apex $scratch_org_username
 
 
@@ -145,7 +145,7 @@ stop-scratch-orgs:
   script:
     - install_salesforce_cli
     - install_jq
-    - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - authenticate DEVHUB $DEVHUB_AUTH_URL
     - delete_scratch_orgs DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
@@ -173,14 +173,14 @@ deploy-to-sandbox:
   script:
     - install_salesforce_cli
     - install_jq
-    - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - authenticate DEVHUB $DEVHUB_AUTH_URL
     - assert_within_limits DEVHUB Package2VersionCreates
     - package_id=$(get_package_id DEVHUB $PACKAGE_NAME)
     - echo $package_id > PACKAGE_ID.txt
     - add_package_alias DEVHUB $package_id
     - package_version_id=$(build_package_version DEVHUB $package_id)
     - echo $package_version_id > SUBSCRIBER_PACKAGE_VERSION_ID.txt
-    - authenticate $SANDBOX_AUTH_URL SANDBOX
+    - authenticate SANDBOX $SANDBOX_AUTH_URL
     - install_package_version SANDBOX $package_version_id
   artifacts:
     paths:
@@ -213,11 +213,11 @@ deploy-to-production:
     - install_jq
     - package_id=$(cat PACKAGE_ID.txt)
     - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
-    - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - authenticate DEVHUB $DEVHUB_AUTH_URL
     - add_package_alias DEVHUB $package_id
     - promote_package_version DEVHUB $package_version_id
     - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL; fi
-    - authenticate $PRODUCTION_AUTH_URL PRODUCTION
+    - authenticate PRODUCTION $PRODUCTION_AUTH_URL
     - install_package_version PRODUCTION $package_version_id
 
 
@@ -389,13 +389,15 @@ deploy-to-production:
   # Function to authenticate to Salesforce.
   # Don't expose the auth url to the logs.
   # Arguments:
-  #     $1 = Sfdx Auth URL
-  #     $2 = alias to set
+  #     $1 = alias to set
+  #     $2 = Sfdx Auth URL
+  #     $3 = SFDX AUth URL to use if the previous one isn't set (optional)
 
   function authenticate() {
 
-    local org_auth_url=$1
-    local alias_to_set=$2
+    local alias_to_set=$1
+    local org_auth_url=$2
+    local org_auth_url_backup=$3
 
     local file=$(mktemp)
     echo $org_auth_url > $file
