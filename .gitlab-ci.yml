@@ -13,7 +13,7 @@ image: "node:latest"
 # https://docs.gitlab.com/ee/ci/yaml/README.html#cache
 ####################################################
 cache:
-  key: ${CI_COMMIT_REF_SLUG}
+  key: ${CI_COMMIT_REF_NAME}
   paths:
     - node_modules/
     - .sfdx/
@@ -61,6 +61,8 @@ test-scratch-lwc:
 # pipeline deploys to the scratch org by delegating
 # to the `npm run scratch:deploy` script.
 # By default, `sfdx force:source:push` is done.
+# Note that we always delete previous scratch orgs on
+# the same ref (branch) before creating and deploying
 ####################################################
 deploy-scratch-org:
   stage: deploy-scratch
@@ -76,21 +78,17 @@ deploy-scratch-org:
     - install_salesforce_cli
     - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
-    - assert_within_limits DEVHUB DailyScratchOrgs
-    - scratch_org_username=$(create_scratch_org DEVHUB)
-    - scratch_org_auth_url=$(get_org_auth_url $scratch_org_username)
-    - echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
-    - echo $scratch_org_auth_url > SCRATCH_ORG_AUTH_URL.txt
-    - push_to_scratch_org $scratch_org_username
-    - populate_url_artifact $scratch_org_username
+    - delete_scratch_orgs DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
+    - deploy_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
-    url: $CI_PROJECT_URL/-/jobs/artifacts/master/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
+    url: $CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
+    on_stop: stop-scratch-orgs
   artifacts:
     paths:
+      - ENVIRONMENT.html
       - SCRATCH_ORG_USERNAME.txt
       - SCRATCH_ORG_AUTH_URL.txt
-      - ENVIRONMENT.html
 
 
 ####################################################
@@ -128,9 +126,11 @@ test-scratch-apex:
 
 ####################################################
 # Deletes the scratch org.
+# Technically this deletes ALL the scratch orgs for the ref.
+# See https://docs.gitlab.com/ee/ci/environments.html#stopping-an-environment
 ####################################################
-delete-scratch-org:
-  stage: test-scratch
+stop-scratch-orgs:
+  stage: deploy-scratch
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
@@ -144,8 +144,10 @@ delete-scratch-org:
     - install_salesforce_cli
     - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
-    - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
-    - delete_scratch_org DEVHUB $scratch_org_username
+    - delete_scratch_orgs DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
+  environment:
+    name: scratch/$CI_COMMIT_REF_SLUG
+    action: stop
 
 
 ####################################################
@@ -178,7 +180,7 @@ deploy-to-sandbox:
     - echo $package_version_id > SUBSCRIBER_PACKAGE_VERSION_ID.txt
     - authenticate $SANDBOX_AUTH_URL SANDBOX
     - install_package_version SANDBOX $package_version_id
-    - populate_url_artifact SANDBOX
+    - populate_scratch_org_redirect_html SANDBOX
   artifacts:
     paths:
       - PACKAGE_ID.txt
@@ -217,7 +219,7 @@ deploy-to-production:
     - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL; fi
     - authenticate $PRODUCTION_AUTH_URL PRODUCTION
     - install_package_version PRODUCTION $package_version_id
-    - populate_url_artifact PRODUCTION
+    - populate_scratch_org_redirect_html PRODUCTION
   artifacts:
     paths:
       - ENVIRONMENT.html
@@ -341,16 +343,18 @@ deploy-to-production:
     fi
   }
 
+
   # Function to run apex tests.
   # We leverage the script property `test:apex` in package.json to provide developers a "hook"
   # to control exactly how they want their apex test to be executed.
   # Arguments:
-  #     $1 = org alias
+  #     $1 = username or alias of org to test
+  #     $2 = org name property
+  # (Assumes you've already authorized to that org)
 
   function test_apex() {
 
     local org_username=$1
-    echo "org_username=$org_username" >&2
 
     if [ ! $org_username ]; then
       echo "ERROR No org username provided to 'test_apex' function" >&2
@@ -411,9 +415,11 @@ deploy-to-production:
 
   # Function to get SFDX Auth URL for an org.
   # Don't expose the force:org:display to logs to avoid exposing sensitive information like access tokens.
+  # Note this can only be run on a scratch org right after creating it, otherwise we won't be able to find the org
   # Arguments:
   #     $1 = target org alias whose auth url to get
   # Returns the SFDX Auth URL for the given org.
+  # TODO: Remove this? Functionality is included in the create function
 
   function get_org_auth_url() {
 
@@ -628,14 +634,14 @@ deploy-to-production:
   # NOTE: This is a tokenized URL and must be kept secret!
   # Arguments:
   #     $1 = org alias to get access url to
+  # (Assumes you are authorized to that org)
 
-  function populate_url_artifact() {
+  function populate_scratch_org_redirect_html() {
 
     local org_username=$1
-    echo "org_username=$org_username" >&2
 
     if [ ! $org_username ]; then
-      echo "ERROR No org username provided to 'populate_url_artifact' function" >&2
+      echo "ERROR No org username provided to 'populate_scratch_org_redirect_html' function" >&2
       exit 1;
     fi
 
@@ -649,23 +655,65 @@ deploy-to-production:
   }
 
 
-  # Create a scratch org.
+  # Create a scratch org and deploy to it.
   # Arguments:
   #     $1 = dev hub alias
+  #     $2 = org name for the scratch org
+  # Populates artifacts for the username and the auth url
+
+  function deploy_scratch_org() {
+    local devhub=$1
+    local orgname=$2
+    assert_within_limits $devhub DailyScratchOrgs
+    local scratch_org_username=$(create_scratch_org $devhub $orgname)
+    echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
+    get_org_auth_url $scratch_org_username > SCRATCH_ORG_AUTH_URL.txt
+    push_to_scratch_org $scratch_org_username
+    populate_scratch_org_redirect_html $scratch_org_username
+    echo "Deployed to scratch org $username for $orgname"
+  }
+
+
+
+  # Create a new scratch org (i.e. if one doesn't exist yet)
+  # Arguments:
+  #     $1 = dev hub alias
+  #     $2 = org name for the scratch org
+  # Populates the artifacts for username and auth url
   # Returns the newly-created scratch org username.
 
   function create_scratch_org() {
+    local devhub=$1
+    export local orgname=$2
 
-    local devhub_username=$1
-    echo "devhub_username=$devhub_username" >&2
-
-    # Create scratch org and grab its new username
-    local cmd="sfdx force:org:create --targetdevhubusername $devhub_username --setdefaultusername --definitionfile config/project-scratch-def.json --wait 10 --durationdays 30 --json" && (echo $cmd >&2)
+    # Create the scratch org
+    local cmd="sfdx force:org:create --targetdevhubusername $devhub --wait 10 --durationdays 30 --json orgName=$orgname edition=Developer" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
+    echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
 
-    # Return the scratch org username
+    # Get the auth URL
+    local cmd="sfdx force:org:display --verbose --targetusername $org_username --json" && (echo $cmd >&2)
+    local output=$($cmd)
+    org_auth_url="$(jq -r '.result.sfdxAuthUrl' <<< $output)"
+    echo $org_auth_url > SCRATCH_ORG_AUTH_URL.txt
+
     echo $scratch_org_username
+  }
+
+
+  # Get scratch org usernames
+  # Arguments:
+  #     $1 = username or alias for the dev hub
+  #     $2 = org name value for the scratch orgs
+  # Returns one or more usernames (newline-separated)
+
+  function get_scratch_org_usernames() {
+    local devhub=$1
+    local orgname=$2
+    local result=$(sfdx force:data:soql:query --targetusername $devhub --query "SELECT SignupUsername FROM ScratchOrgInfo WHERE OrgName='$orgname'" --json)
+    local usernames=$(jq -r ".result.records|map(.SignupUsername)|.[]" <<< $result)
+    echo $usernames
   }
 
 
@@ -676,7 +724,6 @@ deploy-to-production:
   function push_to_scratch_org() {
 
     local scratch_org_username=$1
-    echo "scratch_org_username=$scratch_org_username" >&2
 
     if [ ! $scratch_org_username ]; then
       echo "ERROR No scratch org username provided to 'push_to_scratch_org' function" >&2
@@ -713,34 +760,22 @@ deploy-to-production:
   }
 
 
-  # Delete a scratch org.
+  # Delete all scratch orgs associated with a ref
   # Arguments
   #     $1 = dev hub username
-  #     $2 = scratch org username
+  #     $2 = org name property of scratch orgs to delete
 
-  function delete_scratch_org() {
-
+  function delete_scratch_orgs() {
     local devhub_username=$1
-    local scratch_org_username=$2
-    echo "devhub_username=$devhub_username" >&2
-    echo "scratch_org_username=$scratch_org_username" >&2
-
-    if [ ! $devhub_username ]; then
-      echo "ERROR No dev hub org username provided to 'delete_scratch_org' function" >&2
-      exit 1;
-    fi
-
-    if [ ! $scratch_org_username ]; then
-      echo "ERROR No scratch org username provided to 'delete_scratch_org' function" >&2
-      exit 1;
-    fi
-
-    local cmd="sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername $devhub_username --where "'"SignupUsername='$scratch_org_username'"'" --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq '.' >&2)
-
+    local scratch_org_name=$2
+    local usernames=$(get_scratch_org_usernames $devhub_username $scratch_org_name)
+    for scratch_org_username in $usernames; do
+      echo "Deleting $scratch_org_username"
+      local cmd="sfdx force:data:record:delete --sobjecttype ScratchOrgInfo --targetusername $devhub_username --where "'"SignupUsername='$scratch_org_username'"'" --json" && (echo $cmd >&2)
+      local output=$($cmd) && (echo $output | jq '.' >&2)
+    done
   }
 
 
 before_script:
   - *sfdx_helpers
-
