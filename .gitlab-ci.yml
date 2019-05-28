@@ -25,12 +25,12 @@ cache:
 # https://docs.gitlab.com/ee/ci/yaml/README.html#stages
 ####################################################
 stages:
- - predeploy-scratch
- - deploy-scratch
- - test-scratch
- - deploy-sandbox
- - test-sandbox
- - deploy-production
+ - preliminary-testing
+ - create-scratch-org
+ - test-scratch-org
+ - package
+ - staging
+ - production
 
 
 ####################################################
@@ -40,8 +40,8 @@ stages:
 # Set `allow_failure: true` to not hold up the
 # pipeline on failure.
 ####################################################
-test-scratch-lwc:
-  stage: predeploy-scratch
+test-lwc:
+  stage: preliminary-testing
   except:
     variables:
       - $TEST_DISABLED
@@ -64,8 +64,8 @@ test-scratch-lwc:
 # Note that we always delete previous scratch orgs on
 # the same ref (branch) before creating and deploying
 ####################################################
-deploy-scratch-org:
-  stage: deploy-scratch
+create-scratch-org:
+  stage: create-scratch-org
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
@@ -83,7 +83,7 @@ deploy-scratch-org:
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
     url: $CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
-    on_stop: stop-scratch-orgs
+    on_stop: delete-scratch-org
   artifacts:
     paths:
       - ENVIRONMENT.html
@@ -102,8 +102,8 @@ deploy-scratch-org:
 # The scratch org will be set as the default username
 # when the test script executes.
 ####################################################
-test-scratch-apex:
-  stage: test-scratch
+test-apex:
+  stage: test-scratch-org
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
@@ -114,7 +114,7 @@ test-scratch-apex:
       - $TEST_DISABLED
   allow_failure: false
   dependencies:
-    - deploy-scratch-org
+    - create-scratch-org
   script:
     - install_salesforce_cli
     - install_jq
@@ -129,8 +129,8 @@ test-scratch-apex:
 # Technically this deletes ALL the scratch orgs for the ref.
 # See https://docs.gitlab.com/ee/ci/environments.html#stopping-an-environment
 ####################################################
-stop-scratch-orgs:
-  stage: deploy-scratch
+delete-scratch-org:
+  stage: create-scratch-org
   variables:
     GIT_STRATEGY: none
   only:
@@ -153,15 +153,27 @@ stop-scratch-orgs:
 
 
 ####################################################
-# Creates a new package version and installs it
-# into the sandbox org.
+# Creates a new package version for deployment
+# TODO: Break out the sandbox stuff
 ####################################################
-deploy-to-sandbox:
-  stage: deploy-sandbox
+
+create-package-version:
+  stage: package
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
-      - $DEPLOY_SANDBOX_ON_EVERY_COMMIT == 'true'
+  script: ':'
+
+
+####################################################
+# Deploy into the sandbox org
+####################################################
+
+deploy-sandbox:
+  stage: staging
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
   except:
     variables:
       - $SANDBOX_DISABLED
@@ -192,19 +204,18 @@ deploy-to-sandbox:
 # Promotes and installs the package version created
 # and installed in the sandbox in the prior stage.
 ####################################################
-deploy-to-production:
-  stage: deploy-production
+deploy-production:
+  stage: production
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
-      - $DEPLOY_PRODUCTION_ON_EVERY_COMMIT == 'true'
   except:
     variables:
       - $PRODUCTION_DISABLED
   when: manual
   allow_failure: false
   dependencies:
-    - deploy-to-sandbox
+    - deploy-sandbox  # TODO: Depend on packaging
   environment:
     name: production
     url: https://login.salesforce.com
