@@ -61,6 +61,8 @@ test-scratch-lwc:
 # pipeline deploys to the scratch org by delegating
 # to the `npm run scratch:deploy` script.
 # By default, `sfdx force:source:push` is done.
+# Note that we always delete previous scratch orgs on
+# the same ref (branch) before creating and deploying
 ####################################################
 deploy-scratch-org:
   stage: deploy-scratch
@@ -76,6 +78,7 @@ deploy-scratch-org:
     - install_salesforce_cli
     - install_jq
     - authenticate $DEVHUB_AUTH_URL DEVHUB
+    - delete_scratch_orgs DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
     - deploy_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
@@ -177,7 +180,7 @@ deploy-to-sandbox:
     - echo $package_version_id > SUBSCRIBER_PACKAGE_VERSION_ID.txt
     - authenticate $SANDBOX_AUTH_URL SANDBOX
     - install_package_version SANDBOX $package_version_id
-    - populate_url_artifact SANDBOX
+    - populate_scratch_org_redirect_html SANDBOX
   artifacts:
     paths:
       - PACKAGE_ID.txt
@@ -216,7 +219,7 @@ deploy-to-production:
     - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL; fi
     - authenticate $PRODUCTION_AUTH_URL PRODUCTION
     - install_package_version PRODUCTION $package_version_id
-    - populate_url_artifact PRODUCTION
+    - populate_scratch_org_redirect_html PRODUCTION
   artifacts:
     paths:
       - ENVIRONMENT.html
@@ -631,14 +634,14 @@ deploy-to-production:
   # NOTE: This is a tokenized URL and must be kept secret!
   # Arguments:
   #     $1 = org alias to get access url to
+  # (Assumes you are authorized to that org)
 
-  function populate_url_artifact() {
+  function populate_scratch_org_redirect_html() {
 
     local org_username=$1
-    echo "org_username=$org_username" >&2
 
     if [ ! $org_username ]; then
-      echo "ERROR No org username provided to 'populate_url_artifact' function" >&2
+      echo "ERROR No org username provided to 'populate_scratch_org_redirect_html' function" >&2
       exit 1;
     fi
 
@@ -666,7 +669,7 @@ deploy-to-production:
     echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
     get_org_auth_url $scratch_org_username > SCRATCH_ORG_AUTH_URL.txt
     push_to_scratch_org $scratch_org_username
-    populate_url_artifact $scratch_org_username
+    populate_scratch_org_redirect_html $scratch_org_username
     echo "Deployed to scratch org $username for $orgname"
   }
 
