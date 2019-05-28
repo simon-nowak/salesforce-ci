@@ -131,6 +131,8 @@ test-scratch-apex:
 ####################################################
 stop-scratch-orgs:
   stage: deploy-scratch
+  variables:
+    GIT_STRATEGY: none
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
