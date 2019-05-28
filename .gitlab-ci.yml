@@ -180,8 +180,8 @@ deploy-to-sandbox:
     - add_package_alias DEVHUB $package_id
     - package_version_id=$(build_package_version DEVHUB $package_id)
     - echo $package_version_id > SUBSCRIBER_PACKAGE_VERSION_ID.txt
-    # - authenticate $SANDBOX_AUTH_URL SANDBOX
-    # - install_package_version SANDBOX $package_version_id
+    - authenticate $SANDBOX_AUTH_URL SANDBOX
+    - install_package_version SANDBOX $package_version_id
   artifacts:
     paths:
       - PACKAGE_ID.txt
