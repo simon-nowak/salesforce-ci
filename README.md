@@ -14,7 +14,7 @@ and deploy the new package version into your sandbox and production environments
 
 There are 6 stages to this pipeline:
 
-1. **Preliminary Testing**: For unit tests that can run in the context of a runner, without deployment to a scratch org. By default, this stage runs Jest tests for Lightning Web Components, if they exist.
+1. **Preliminary Testing**: For unit tests that can run in the context of a runner, without deployment to a scratch org. By default, this stage runs [Jest tests](https://developer.salesforce.com/docs/component-library/documentation/lwc/lwc.testing) for [Lightning Web Components](https://trailhead.salesforce.com/en/content/learn/trails/build-lightning-web-components), if they exist.
 2. **Create Scratch Org**: Checks if you are within your daily scratch org limits, then creates a new scratch org and deploys the app metadata to it. Note there is also a "delete scratch org" job which can be run manually to remove and clean up leftover scratch orgs.
 3. **Test Scratch Org**: Runs tests on the scratch org, such as Apex tests. At this point your team can conduct manual testing in the scratch org.
 4. **Package**: Create a new unlocked package version for deployment to sandbox and production orgs. Only runs in the master branch.
