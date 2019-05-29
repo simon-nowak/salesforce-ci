@@ -28,7 +28,7 @@ There are 6 stages to this pipeline:
 3. [Create](https://docs.gitlab.com/ee/gitlab-basics/create-project.html) a new GitLab project or [import](https://docs.gitlab.com/ee/user/project/import/repo_by_url.html) our quick start [sfdx/sfdx-project-template](https://gitlab.com/sfdx/sfdx-project-template).
 4. [Configure](#configure-environment-variables) CI/CD environment variables in your GitLab project.
 5. [Clone](https://docs.gitlab.com/ee/gitlab-basics/command-line-commands.html) your project locally.
-6. Add your Salesforce DX source to your local GitLab project then commit and push the changes to the `master` branch.
+6. Add your Salesforce DX source to your local GitLab project then commit and push the changes to the `master` branch, which will initiate the CI pipeline.
 
 # Configure Environment Variables
 
