@@ -10,7 +10,7 @@ The CI pipeline for Salesforce is configured to create a scratch org and run tes
 If tests pass, then the CI pipeline will create a new unlocked package version. You then have the option to manually approve the change
 and deploy the new package version into your sandbox and production environments.
 
-![screenshot](images/completed-pipeline.png)
+![Completed pipeline](images/completed-pipeline.png)
 
 There are 6 stages to this pipeline:
 
@@ -39,7 +39,7 @@ To use GitLab CI, you need to authenticate the GitLab project to your orgs in Sa
 3. Use the `sfdx force:org:display --targetusername <username> --verbose` command to get the [Sfdx Auth Url](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_auth_view_info.htm) for your various orgs. The URL you're looking for starts with `force://`. **Note, you must use the `--verbose` argument to see the Sfdx Auth URL.**
 4. Populate the variables under **Settings > CI / CD > Variables** in your project in GitLab.
 
-![screenshot](images/cicd-variables.png)
+![Enter CI/CD variables](images/cicd-variables.png)
 
 Here are the Auth URL variables to set:
 
