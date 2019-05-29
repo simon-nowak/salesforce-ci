@@ -77,7 +77,7 @@ create-scratch-org:
   script:
     - install_salesforce_cli
     - install_jq
-    - authenticate DEVHUB $DEVHUB_AUTH_URL
+    - authenticate DEVHUB $DEVHUB_AUTH_URL $PRODUCTION_AUTH_URL
     - delete_scratch_orgs DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
     - deploy_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
   environment:
@@ -145,7 +145,7 @@ delete-scratch-org:
   script:
     - install_salesforce_cli
     - install_jq
-    - authenticate DEVHUB $DEVHUB_AUTH_URL
+    - authenticate DEVHUB $DEVHUB_AUTH_URL $PRODUCTION_AUTH_URL
     - delete_scratch_orgs DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
@@ -185,7 +185,7 @@ deploy-sandbox:
   script:
     - install_salesforce_cli
     - install_jq
-    - authenticate DEVHUB $DEVHUB_AUTH_URL
+    - authenticate DEVHUB $DEVHUB_AUTH_URL $PRODUCTION_AUTH_URL
     - assert_within_limits DEVHUB Package2VersionCreates
     - package_id=$(get_package_id DEVHUB $PACKAGE_NAME)
     - echo $package_id > PACKAGE_ID.txt
@@ -224,11 +224,10 @@ deploy-production:
     - install_jq
     - package_id=$(cat PACKAGE_ID.txt)
     - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
-    - authenticate DEVHUB $DEVHUB_AUTH_URL
+    - authenticate DEVHUB $DEVHUB_AUTH_URL $PRODUCTION_AUTH_URL
     - add_package_alias DEVHUB $package_id
     - promote_package_version DEVHUB $package_version_id
-    - if [ -z "$PRODUCTION_AUTH_URL" ]; then export PRODUCTION_AUTH_URL=$DEVHUB_AUTH_URL; fi
-    - authenticate PRODUCTION $PRODUCTION_AUTH_URL
+    - authenticate PRODUCTION $PRODUCTION_AUTH_URL $DEVHUB_AUTH_URL
     - install_package_version PRODUCTION $package_version_id
 
 
