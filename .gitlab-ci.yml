@@ -429,8 +429,7 @@ deploy-production:
   # Arguments:
   #     $1 = target org alias whose auth url to get
   # Returns the SFDX Auth URL for the given org.
-  # TODO: Remove this? Functionality is included in the create function
-
+  
   function get_org_auth_url() {
 
     local org_username=$1
@@ -705,7 +704,7 @@ deploy-production:
   }
 
 
-  # Create a new scratch org (i.e. if one doesn't exist yet)
+  # Create a new scratch org
   # Arguments:
   #     $1 = dev hub alias
   #     $2 = org name for the scratch org
