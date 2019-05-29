@@ -62,7 +62,7 @@ test-lwc:
 # to the `npm run scratch:deploy` script.
 # By default, `sfdx force:source:push` is done.
 # Note that we always delete previous scratch orgs on
-# the same ref (branch) before creating and deploying
+# the same ref (branch) before creating and deploying.
 ####################################################
 create-scratch-org:
   stage: create-scratch-org
@@ -121,7 +121,7 @@ test-apex:
     - scratch_org_username=$(cat SCRATCH_ORG_USERNAME.txt)
     - scratch_org_auth_url=$(cat SCRATCH_ORG_AUTH_URL.txt)
     - authenticate $scratch_org_username $scratch_org_auth_url
-    - test_apex $scratch_org_username
+    - test_scratch_org $scratch_org_username
 
 
 ####################################################
@@ -153,35 +153,13 @@ delete-scratch-org:
 
 
 ####################################################
-# Creates a new package version for deployment
-# TODO: Break out the sandbox stuff
+# Creates a new package version for deployment.
 ####################################################
-
 create-package-version:
   stage: package
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
-  script: ':'
-
-
-####################################################
-# Deploy into the sandbox org
-####################################################
-
-deploy-sandbox:
-  stage: staging
-  only:
-    variables:
-      - $CI_COMMIT_REF_NAME == 'master'
-  except:
-    variables:
-      - $SANDBOX_DISABLED
-  when: manual
-  allow_failure: false
-  environment:
-    name: sandbox
-    url: https://test.salesforce.com
   script:
     - install_salesforce_cli
     - install_jq
@@ -192,12 +170,35 @@ deploy-sandbox:
     - add_package_alias DEVHUB $package_id
     - package_version_id=$(build_package_version DEVHUB $package_id)
     - echo $package_version_id > SUBSCRIBER_PACKAGE_VERSION_ID.txt
-    - authenticate SANDBOX $SANDBOX_AUTH_URL
-    - install_package_version SANDBOX $package_version_id
   artifacts:
     paths:
       - PACKAGE_ID.txt
       - SUBSCRIBER_PACKAGE_VERSION_ID.txt
+
+
+####################################################
+# Deploy into the sandbox org
+####################################################
+deploy-sandbox:
+  stage: staging
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+  except:
+    variables:
+      - $SANDBOX_DISABLED
+  when: manual
+  allow_failure: false
+  dependencies:
+    - create-package-version
+  environment:
+    name: sandbox
+    url: https://test.salesforce.com
+  script:
+    - install_salesforce_cli
+    - install_jq
+    - authenticate SANDBOX $SANDBOX_AUTH_URL
+    - install_package_version SANDBOX $package_version_id
 
 
 ####################################################
@@ -215,7 +216,7 @@ deploy-production:
   when: manual
   allow_failure: false
   dependencies:
-    - deploy-sandbox  # TODO: Depend on packaging
+    - create-package-version
   environment:
     name: production
     url: https://login.salesforce.com
@@ -350,20 +351,20 @@ deploy-production:
   }
 
 
-  # Function to run apex tests.
-  # We leverage the script property `test:apex` in package.json to provide developers a "hook"
+  # Function to test the scratch org, such as run Apex tests and/or load data.
+  # We leverage the script property `test:scratch` in package.json to provide developers a "hook"
   # to control exactly how they want their apex test to be executed.
   # Arguments:
   #     $1 = username or alias of org to test
   #     $2 = org name property
   # (Assumes you've already authorized to that org)
 
-  function test_apex() {
+  function test_scratch_org() {
 
     local org_username=$1
 
     if [ ! $org_username ]; then
-      echo "ERROR No org username provided to 'test_apex' function" >&2
+      echo "ERROR No org username provided to 'test_scratch_org' function" >&2
       exit 1;
     fi
 
@@ -372,25 +373,25 @@ deploy-production:
       npm init -y
     fi
 
-    # Check if the scripts property in package.json contains key for "test:apex"
-    local scriptValue=$(jq -r '.scripts["test:apex"]' < package.json)
+    # Check if the scripts property in package.json contains key for "test:scratch"
+    local scriptValue=$(jq -r '.scripts["test:scratch"]' < package.json)
 
-    # If no "test:apex" script property, then add one
+    # If no "test:scratch" script property, then add one
     if [ -n "$scriptValue" ]; then
       local tmp=$(mktemp)
-      jq '.scripts["test:apex"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10"' package.json > $tmp
+      jq '.scripts["test:scratch"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10"' package.json > $tmp
       mv $tmp package.json
-      echo "added test:apex script property to package.json" >&2
+      echo "added test:scratch script property to package.json" >&2
       cat package.json >&2
     fi
 
     # Set the default username so any CLI commands
-    # the developer has set in their "test:apex" script in package.json
+    # the developer has set in their "test:scratch" script in package.json
     # will operate on the correct environment.
     # Afterwards, restore the original default username, just in case it was different.
     local old_org_username=$(jq -r '.result[].value' <<< $(sfdx force:config:get defaultusername --json))
     sfdx force:config:set defaultusername=$org_username
-    npm run test:apex
+    npm run test:scratch
     sfdx force:config:set defaultusername=$old_org_username
 
   }
@@ -682,7 +683,6 @@ deploy-production:
   }
 
 
-
   # Create a new scratch org (i.e. if one doesn't exist yet)
   # Arguments:
   #     $1 = dev hub alias
@@ -695,7 +695,7 @@ deploy-production:
     export local orgname=$2
 
     # Create the scratch org
-    local cmd="sfdx force:org:create --targetdevhubusername $devhub --wait 10 --durationdays 30 --json orgName=$orgname edition=Developer" && (echo $cmd >&2)
+    local cmd="sfdx force:org:create --targetdevhubusername $devhub --wait 10 --durationdays 30 --definitionfile config/project-scratch-def.json orgName=$orgname --json" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
     scratch_org_username="$(jq -r '.result.username' <<< $output)"
     echo $scratch_org_username > SCRATCH_ORG_USERNAME.txt
