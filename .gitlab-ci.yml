@@ -197,6 +197,7 @@ deploy-sandbox:
   script:
     - install_salesforce_cli
     - install_jq
+    - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
     - authenticate SANDBOX $SANDBOX_AUTH_URL
     - install_package_version SANDBOX $package_version_id
 
@@ -613,12 +614,33 @@ deploy-production:
   #     $2 = package version id to install
 
   function install_package_version() {
+
     local org_username=$1
     local package_version_id=$2
+
     echo "org_username=$org_username" >&2
     echo "package_version_id=$package_version_id" >&2
+
+    if [ -z "$org_username" ]; then
+      echo "ERROR No org username provided to 'install_package_version' function" >&2
+      exit 1
+    fi
+
+    if [ -z "$package_version_id" ]; then
+      echo "ERROR No package version id provided to 'install_package_version' function" >&2
+      exit 1
+    fi
+
+    # install the package
     local cmd="sfdx force:package:install --targetusername $org_username --package $package_version_id --wait 10 --publishwait 10 --noprompt --json" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
+
+    # assert no error response
+    local exit_code=$(jq -r '.exitCode' <<< $output)
+    if [[ ( -n "$exit_code" ) && ( $exit_code -gt 0 ) ]]; then
+      exit 1
+    fi
+
   }
 
 
