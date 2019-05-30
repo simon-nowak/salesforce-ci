@@ -299,7 +299,7 @@ deploy-production:
     local scriptValue=$(jq -r '.scripts["test:lwc"]' < package.json)
 
     # If no "test:lwc" script property, then add one
-    if [ -n "$scriptValue" ]; then
+    if [ -z "$scriptValue" ]; then
       local tmp=$(mktemp)
       jq '.scripts["test:lwc"]="lwc-jest"' package.json > $tmp
       mv $tmp package.json
@@ -378,7 +378,7 @@ deploy-production:
     local scriptValue=$(jq -r '.scripts["test:scratch"]' < package.json)
 
     # If no "test:scratch" script property, then add one
-    if [ -n "$scriptValue" ]; then
+    if [ -z "$scriptValue" ]; then
       local tmp=$(mktemp)
       jq '.scripts["test:scratch"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10"' package.json > $tmp
       mv $tmp package.json
@@ -429,7 +429,7 @@ deploy-production:
   # Arguments:
   #     $1 = target org alias whose auth url to get
   # Returns the SFDX Auth URL for the given org.
-  
+
   function get_org_auth_url() {
 
     local org_username=$1
@@ -568,7 +568,7 @@ deploy-production:
     local packageAlias=$(jq -r '.packageAliases["'$package_name'"]' < sfdx-project.json)
 
     # If no package alias, then add one
-    if [ -n "$packageAlias" ]; then
+    if [ -z "$packageAlias" ]; then
       local tmp=$(mktemp)
       jq '.packageAliases["'$package_name'"]="'$package_id'"' sfdx-project.json > $tmp
       mv $tmp sfdx-project.json
@@ -635,7 +635,7 @@ deploy-production:
     local output=$($cmd) && (echo $output | jq '.' >&2)
 
     # assert no error response
-    local exit_code=$(jq -r '.exitCode' <<< $output)
+    local exit_code=$(jq -r '.exitCode' <<< $output) && (echo $exit_code >&2)
     if [[ ( -n "$exit_code" ) && ( $exit_code -gt 0 ) ]]; then
       exit 1
     fi
@@ -676,7 +676,7 @@ deploy-production:
     fi
 
     local cmd="sfdx force:org:open --targetusername $org_username --urlonly --json" && (echo $cmd >&2)
-    local output=$($cmd) # && (echo $output | jq '.' >&2)
+    local output=$($cmd) # don't echo/expose the output which contains the auth url
     local url=$(jq -r ".result.url" <<< $output)
 
     local environment_html="<script>window.onload=function(){window.location.href=\"$url\"}</script>"
@@ -769,7 +769,7 @@ deploy-production:
     local scriptValue=$(jq -r '.scripts["scratch:deploy"]' < package.json)
 
     # If no "scratch:deploy" script property, then add one
-    if [ -n "$scriptValue" ]; then
+    if [ -z "$scriptValue" ]; then
       local tmp=$(mktemp)
       jq '.scripts["scratch:deploy"]="sfdx force:source:push"' package.json > $tmp
       mv $tmp package.json
