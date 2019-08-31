@@ -592,9 +592,30 @@ deploy-production:
     echo "devhub_username=$devhub_username" >&2
     echo "package_id=$package_id" >&2
 
+    # Calculate next version number.
+    # If the latest package version is released then
+    # we need to increment the major or minor version numbers.
+    # Note that we store the sfdx command arguments as an array
+    # because the syntax $($cmd) failed to interpret the --orderby arguments in quotes "".
+    # https://superuser.com/a/360986/227350
+    local cmd=(sfdx force:package:version:list --targetdevhubusername $devhub_username --concise --packages $package_id --orderby "MajorVersion DESC, MinorVersion DESC, PatchVersion DESC, BuildNumber DESC, CreatedDate DESC" --json) && (echo ${cmd[@]} >&2)
+    local output=$("${cmd[@]}" | jq '.result[0]') && (echo $output | jq '.' >&2)
+    local is_released=$(jq -r '.IsReleased' <<< $output)
+    local major_version=$(jq -r '.MajorVersion' <<< $output)
+    local minor_version=$(jq -r '.MinorVersion' <<< $output)
+    local patch_version=$(jq -r '.PatchVersion' <<< $output)
+    local build_version="NEXT"
+    if [ -z $major_version ]; then major_version=1; fi;
+    if [ -z $minor_version ]; then minor_version=0; fi;
+    if [ -z $patch_version ]; then patch_version=0; fi;
+    if [ $is_released == true ]; then minor_version++; fi;
+    local version_number=$major_version.$minor_version.$patch_version.$build_version
+    echo "version_number=$version_number" >&2
+
     # Create a new package version
-    local cmd="sfdx force:package:version:create --targetdevhubusername $devhub_username --package $package_id --installationkeybypass --wait 10 --json" && (echo $cmd >&2)
-    local output=$($cmd) && (echo $output | jq '.' >&2)
+    # Note that we are back to assigning cmd as a string
+    cmd="sfdx force:package:version:create --targetdevhubusername $devhub_username --package $package_id --versionnumber $version_number --installationkeybypass --wait 10 --json) && (echo $cmd >&2)
+    output=$($cmd) && (echo $output | jq '.' >&2)
     local subscriber_package_version_id=$(jq -r '.result.SubscriberPackageVersionId' <<< $output)
 
     if [[ -z "$subscriber_package_version_id" || $subscriber_package_version_id == null ]]; then
