@@ -122,6 +122,11 @@ test-apex:
     - scratch_org_auth_url=$(cat SCRATCH_ORG_AUTH_URL.txt)
     - authenticate $scratch_org_username $scratch_org_auth_url
     - test_scratch_org $scratch_org_username
+  artifacts:
+    reports:
+      junit: tests/apex/*-junit.xml
+  coverage: '/name="testRunCoverage" value="([\d]+%)"/'
+
 
 
 ####################################################
@@ -374,13 +379,17 @@ deploy-production:
       npm init -y
     fi
 
+    # Make directory to output test results
+    # https://gitlab.com/help/ci/yaml/README.md#artifactsreports
+    mkdir -p ./tests/apex
+
     # Check if the scripts property in package.json contains key for "test:scratch"
     local scriptValue=$(jq -r '.scripts["test:scratch"]' < package.json)
 
     # If no "test:scratch" script property, then add one
     if [[ -z "$scriptValue" || $scriptValue == null ]]; then
       local tmp=$(mktemp)
-      jq '.scripts["test:scratch"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10"' package.json > $tmp
+      jq '.scripts["test:scratch"]="sfdx force:apex:test:run --codecoverage --resultformat junit --wait 10 --outputdir ./tests/apex"' package.json > $tmp
       mv $tmp package.json
       echo "added test:scratch script property to package.json" >&2
       cat package.json >&2
