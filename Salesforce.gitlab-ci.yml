@@ -606,7 +606,7 @@ deploy-production:
     if [ -z $major_version ]; then major_version=1; fi;
     if [ -z $minor_version ]; then minor_version=0; fi;
     if [ -z $patch_version ]; then patch_version=0; fi;
-    if [ $is_released == true ]; then minor_version++; fi;
+    if [ $is_released == true ]; then minor_version=$(($minor_version+1)); fi;
     local version_number=$major_version.$minor_version.$patch_version.$build_version
     echo "version_number=$version_number" >&2
 
