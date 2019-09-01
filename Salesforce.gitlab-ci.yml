@@ -595,7 +595,7 @@ deploy-production:
     # Calculate next version number.
     # If the latest package version is released then
     # we need to increment the major or minor version numbers.
-    local cmd="sfdx force:package:version:list --targetdevhubusername $devhub_username --concise --packages $package_id --json" && (echo $cmd >&2)
+    local cmd="sfdx force:package:version:list --targetdevhubusername $devhub_username --packages $package_id --concise --released --json" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
     local last_package_version=$(jq '.result | sort_by(-.MajorVersion, -.MinorVersion, -.PatchVersion, -.BuildNumber) | .[0]' <<< $output)
     local is_released=$(jq -r '.IsReleased' <<< $last_package_version)
