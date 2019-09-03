@@ -122,6 +122,13 @@ test-apex:
     - scratch_org_auth_url=$(cat SCRATCH_ORG_AUTH_URL.txt)
     - authenticate $scratch_org_username $scratch_org_auth_url
     - test_scratch_org $scratch_org_username
+  artifacts:
+    reports:
+      junit: tests/apex/*-junit.xml
+    paths:
+      - tests/
+  coverage: '/name="testRunCoverage" value="([\d]+%)"/'
+
 
 
 ####################################################
@@ -374,13 +381,17 @@ deploy-production:
       npm init -y
     fi
 
+    # Make directory to output test results
+    # https://gitlab.com/help/ci/yaml/README.md#artifactsreports
+    mkdir -p ./tests/apex
+
     # Check if the scripts property in package.json contains key for "test:scratch"
     local scriptValue=$(jq -r '.scripts["test:scratch"]' < package.json)
 
     # If no "test:scratch" script property, then add one
     if [[ -z "$scriptValue" || $scriptValue == null ]]; then
       local tmp=$(mktemp)
-      jq '.scripts["test:scratch"]="sfdx force:apex:test:run --codecoverage --resultformat human --wait 10"' package.json > $tmp
+      jq '.scripts["test:scratch"]="sfdx force:apex:test:run --codecoverage --resultformat junit --wait 10 --outputdir ./tests/apex"' package.json > $tmp
       mv $tmp package.json
       echo "added test:scratch script property to package.json" >&2
       cat package.json >&2
@@ -592,9 +603,27 @@ deploy-production:
     echo "devhub_username=$devhub_username" >&2
     echo "package_id=$package_id" >&2
 
-    # Create a new package version
-    local cmd="sfdx force:package:version:create --targetdevhubusername $devhub_username --package $package_id --installationkeybypass --wait 10 --json" && (echo $cmd >&2)
+    # Calculate next version number.
+    # If the latest package version is released then
+    # we need to increment the major or minor version numbers.
+    local cmd="sfdx force:package:version:list --targetdevhubusername $devhub_username --packages $package_id --concise --released --json" && (echo $cmd >&2)
     local output=$($cmd) && (echo $output | jq '.' >&2)
+    local last_package_version=$(jq '.result | sort_by(-.MajorVersion, -.MinorVersion, -.PatchVersion, -.BuildNumber) | .[0]' <<< $output)
+    local is_released=$(jq -r '.IsReleased' <<< $last_package_version)
+    local major_version=$(jq -r '.MajorVersion' <<< $last_package_version)
+    local minor_version=$(jq -r '.MinorVersion' <<< $last_package_version)
+    local patch_version=$(jq -r '.PatchVersion' <<< $last_package_version)
+    local build_version="NEXT"
+    if [ -z $major_version ]; then major_version=1; fi;
+    if [ -z $minor_version ]; then minor_version=0; fi;
+    if [ -z $patch_version ]; then patch_version=0; fi;
+    if [ $is_released == true ]; then minor_version=$(($minor_version+1)); fi;
+    local version_number=$major_version.$minor_version.$patch_version.$build_version
+    echo "version_number=$version_number" >&2
+
+    # Create a new package version
+    cmd="sfdx force:package:version:create --targetdevhubusername $devhub_username --package $package_id --versionnumber $version_number --installationkeybypass --wait 10 --json" && (echo $cmd >&2)
+    output=$($cmd) && (echo $output | jq '.' >&2)
     local subscriber_package_version_id=$(jq -r '.result.SubscriberPackageVersionId' <<< $output)
 
     if [[ -z "$subscriber_package_version_id" || $subscriber_package_version_id == null ]]; then
