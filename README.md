@@ -25,10 +25,42 @@ There are 6 stages to this pipeline:
 
 1. Obtain a [Dev Hub](https://trailhead.salesforce.com/content/learn/projects/quick-start-salesforce-dx?trail_id=sfdx_get_started) org, which is required for creating scratch orgs in the CI pipeline. For testing, you can use a free [Trailhead Playground](https://trailhead.salesforce.com/content/learn/modules/trailhead_playground_management?trail_id=learn_salesforce_with_trailhead) or free [Developer Edition](https://developer.salesforce.com/signup) org.
 2. In your Dev Hub org, enable both features [Dev Hub](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_enable_devhub.htm) and [Second-Generation Packaging](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_enable_secondgen_pkg.htm).
-3. [Create](https://docs.gitlab.com/ee/gitlab-basics/create-project.html) a new GitLab project or [import](https://docs.gitlab.com/ee/user/project/import/repo_by_url.html) our quick start [sfdx/sfdx-project-template](https://gitlab.com/sfdx/sfdx-project-template).
-4. [Configure](#configure-environment-variables) CI/CD environment variables in your GitLab project.
-5. [Clone](https://docs.gitlab.com/ee/gitlab-basics/command-line-commands.html) your project locally.
-6. Add your Salesforce DX source to your local GitLab project then commit and push the changes to the `master` branch, which will initiate the CI pipeline.
+3. [Create](#create-an-unlocked-package) an unlocked package.
+4. [Create](https://docs.gitlab.com/ee/gitlab-basics/create-project.html) a new GitLab project or [import](https://docs.gitlab.com/ee/user/project/import/repo_by_url.html) our quick start [sfdx/sfdx-project-template](https://gitlab.com/sfdx/sfdx-project-template).
+5. [Configure](#configure-environment-variables) CI/CD environment variables in your GitLab project.
+6. [Clone](https://docs.gitlab.com/ee/gitlab-basics/command-line-commands.html) your project locally.
+7. Add your Salesforce DX source to your local GitLab project then commit and push the changes to the `master` branch, which will initiate the CI pipeline.
+
+# Create an Unlocked Package
+
+The package stage of the CI pipeline will automatically create new package versions. You can manually click a button in the pipeline to install the packages into downstream Salesforce environments. Before running the pipeline, you need to have created the package definition and update your `sfdx-project.json` file to reference it.
+
+1. From your project directory, [create an unlocked package](https://trailhead.salesforce.com/en/content/learn/projects/quick-start-unlocked-packages) using the [sfdx force:project:create](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_dev2gp_create_pkg.htm) command. You only need to do this once per package/project.
+
+2. Ensure your `sfdx-project.json` file mentions the package name and initial version number scheme in the `packageDirectories` property, and that the package name and ID (0Ho) are defined in the `packageAliases` property.
+
+    An example `sfdx-project.json` file:
+    ```json
+    {
+        "packageDirectories": [
+            {
+                "path": "force-app",
+                "default": true,
+                "package": "YOUR_PACKAGE_NAME",
+                "versionNumber": "1.0.0.NEXT"
+            }
+        ],
+        "namespace": "",
+        "sourceApiVersion": "46.0",
+        "packageAliases": {
+            "YOUR_PACKAGE_NAME": "0HoXXXXXXXXXXXXXXX"
+        }
+    }
+    ```
+
+Once set, you don't have to manage the `versionNumber` property in `sfdx-project.json`. The CI pipeline determines the next appropriate version number automatically. Once a package version number has been released, the CI pipeline will create new package versions with a minor version number one greater than the latest released version.
+
+For example, if the latest released version number is 1.2.0.5, then the next time the CI pipeline creates a new package version then it'll automatically compute the new version number to be 1.3.0.1.
 
 # Configure Environment Variables
 
