@@ -83,6 +83,7 @@ Here are some other variables that are optional:
 
 - `DEPLOY_SCRATCH_ON_EVERY_COMMIT`: "true" to deploy a scratch org on every commit in a merge request, otherwise it won't.
 - `PACKAGE_NAME`: Optional. Must match one of the `packageDirectories` entries in `sfdx-project.json`. If not present, then the CI pipeline uses the default package directory from `sfdx-project.json`.
+- `USE_PACKAGES` : Default value is set to `true` which will deploy your metadata / code as a unlocked package.
 
 Optionally, disable entire jobs with the following boolean variables:
 
