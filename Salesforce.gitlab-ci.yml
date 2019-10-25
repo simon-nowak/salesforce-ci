@@ -164,10 +164,10 @@ delete-scratch-org:
 ####################################################
 create-package-version:
   stage: package
-  only:
-    variables:
-      - $CI_COMMIT_REF_NAME == 'master'
-      - $USE_PACKAGES == 'true'
+  rules:
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "true"'
+      when: always
+    - when: never
   script:
     - install_salesforce_cli
     - install_jq
@@ -188,10 +188,10 @@ create-package-version:
 ####################################################
 deploy-sandbox-package:
   stage: staging
-  only:
-    variables:
-      - $CI_COMMIT_REF_NAME == 'master'
-      - $USE_PACKAGES == 'true'
+  rules:
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "true"'
+      when: always
+    - when: never
   except:
     variables:
       - $SANDBOX_DISABLED
@@ -214,13 +214,13 @@ deploy-sandbox-package:
 ####################################################
 deploy-sandbox-metadata:
   stage: staging
-  only:
-    variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+  rules:
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "false"'
+      when: always
+    - when: on_success
   except:
     variables:
       - $SANDBOX_DISABLED
-      - $USE_PACKAGES == 'true'
   when: manual
   allow_failure: false
   environment:
@@ -238,10 +238,10 @@ deploy-sandbox-metadata:
 ####################################################
 deploy-production-package:
   stage: production
-  only:
-    variables:
-      - $CI_COMMIT_REF_NAME == 'master'
-      - $USE_PACKAGES == 'true'
+  rules:
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "true"'
+      when: always
+    - when: never
   except:
     variables:
       - $PRODUCTION_DISABLED
@@ -268,13 +268,13 @@ deploy-production-package:
 ####################################################
 deploy-production-metadata:
   stage: production
-  only:
-    variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+  rules:
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "false"'
+      when: always
+    - when: on_success
   except:
     variables:
       - $PRODUCTION_DISABLED
-      - $USE_PACKAGES == 'true'
   when: manual
   allow_failure: false
   environment:
