@@ -167,7 +167,7 @@ create-package-version:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
-      - $USE_PACKAGES
+      - $USE_PACKAGES == 'true'
   script:
     - install_salesforce_cli
     - install_jq
@@ -191,7 +191,7 @@ deploy-sandbox-package:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
-      - $USE_PACKAGES
+      - $USE_PACKAGES == 'true'
   except:
     variables:
       - $SANDBOX_DISABLED
@@ -220,7 +220,7 @@ deploy-sandbox-metadata:
   except:
     variables:
       - $SANDBOX_DISABLED
-      - $USE_PACKAGES
+      - $USE_PACKAGES == 'true'
   when: manual
   allow_failure: false
   environment:
@@ -241,7 +241,7 @@ deploy-production-package:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
-      - $USE_PACKAGES
+      - $USE_PACKAGES == 'true'
   except:
     variables:
       - $PRODUCTION_DISABLED
@@ -274,7 +274,7 @@ deploy-production-metadata:
   except:
     variables:
       - $PRODUCTION_DISABLED
-      - $USE_PACKAGES
+      - $USE_PACKAGES == 'true'
   when: manual
   allow_failure: false
   environment:
