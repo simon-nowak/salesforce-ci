@@ -167,6 +167,7 @@ create-package-version:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
+      - $USE_PACKAGES == 'true'
   script:
     - install_salesforce_cli
     - install_jq
@@ -181,7 +182,6 @@ create-package-version:
     paths:
       - PACKAGE_ID.txt
       - SUBSCRIBER_PACKAGE_VERSION_ID.txt
-
 
 ####################################################
 # Deploy into the sandbox org
@@ -204,8 +204,10 @@ deploy-sandbox:
   script:
     - install_salesforce_cli
     - install_jq
-    - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
     - authenticate SANDBOX $SANDBOX_AUTH_URL
+    - 
+    - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
+
     - install_package_version SANDBOX $package_version_id
 
 
@@ -496,6 +498,18 @@ deploy-production:
     fi
   }
 
+  # Generic Deploy function 
+  # Arguements: 
+  #     $1 = 
+  #     $2 =
+  #     $3 = 
+  # Executes the .....
+
+  function deploy_app() { 
+
+
+    
+  }
 
   # Function to get package name and ID.
   # Arguments:
