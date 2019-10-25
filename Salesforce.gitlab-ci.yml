@@ -191,11 +191,9 @@ deploy-sandbox-package:
   rules:
     - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "true"'
       when: always
-    - when: never
-  except:
-    variables:
-      - $SANDBOX_DISABLED
-  when: manual
+    - if: '$SANDBOX_DISABLED == "true"'
+      when: never
+    - when: always
   allow_failure: false
   dependencies:
     - create-package-version
@@ -217,11 +215,9 @@ deploy-sandbox-metadata:
   rules:
     - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "false"'
       when: always
-    - when: on_success
-  except:
-    variables:
-      - $SANDBOX_DISABLED
-  when: manual
+    - if: '$SANDBOX_DISABLED == "true"'
+      when: never
+    - when: manual
   allow_failure: false
   environment:
     name: sandbox
@@ -240,12 +236,10 @@ deploy-production-package:
   stage: production
   rules:
     - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "true"'
-      when: always
-    - when: never
-  except:
-    variables:
-      - $PRODUCTION_DISABLED
-  when: manual
+      when: manual
+    - if: '$PRODUCTION_DISABLED == "true"'
+      when: never
+    - when: manual
   allow_failure: false
   dependencies:
     - create-package-version
@@ -270,12 +264,10 @@ deploy-production-metadata:
   stage: production
   rules:
     - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "false"'
-      when: always
-    - when: on_success
-  except:
-    variables:
-      - $PRODUCTION_DISABLED
-  when: manual
+      when: manual
+    - if: '$PRODUCTION_DISABLED == "true"'
+      when: never
+    - when: manual
   allow_failure: false
   environment:
     name: production
