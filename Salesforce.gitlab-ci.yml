@@ -68,7 +68,7 @@ create-scratch-org:
   stage: create-scratch-org
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
       - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
@@ -142,7 +142,7 @@ delete-scratch-org:
     GIT_STRATEGY: none
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
       - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
@@ -166,7 +166,7 @@ create-package-version:
   stage: package
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
   except:
     variables:
       - $PACKAGES_DISABLED
@@ -192,7 +192,7 @@ deploy-sandbox-package:
   stage: staging
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
   except:
     variables:
       - $SANDBOX_DISABLED
@@ -218,7 +218,7 @@ deploy-sandbox-metadata:
   stage: staging
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
       - $PACKAGES_DISABLED
   except:
     variables:
@@ -242,7 +242,7 @@ deploy-production-package:
   stage: production
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
   except:
     variables:
       - $PRODUCTION_DISABLED
@@ -272,7 +272,7 @@ deploy-production-metadata:
   stage: production
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
       - $PACKAGES_DISABLED
   except:
     variables:
