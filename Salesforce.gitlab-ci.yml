@@ -164,10 +164,12 @@ delete-scratch-org:
 ####################################################
 create-package-version:
   stage: package
-  rules:
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "true"'
-      when: always
-    - when: never
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+  except:
+    variables:
+      - $PACKAGES_DISABLED
   script:
     - install_salesforce_cli
     - install_jq
@@ -188,12 +190,14 @@ create-package-version:
 ####################################################
 deploy-sandbox-package:
   stage: staging
-  rules:
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "true"'
-      when: always
-    - if: '$SANDBOX_DISABLED == "true"'
-      when: never
-    - when: always
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+  except:
+    variables:
+      - $SANDBOX_DISABLED
+      - $PACKAGES_DISABLED
+  when: manual
   allow_failure: false
   dependencies:
     - create-package-version
@@ -212,12 +216,14 @@ deploy-sandbox-package:
 ####################################################
 deploy-sandbox-metadata:
   stage: staging
-  rules:
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "false"'
-      when: always
-    - if: '$SANDBOX_DISABLED == "true"'
-      when: never
-    - when: manual
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $PACKAGES_DISABLED
+  except:
+    variables:
+      - $SANDBOX_DISABLED
+  when: manual
   allow_failure: false
   environment:
     name: sandbox
@@ -234,12 +240,14 @@ deploy-sandbox-metadata:
 ####################################################
 deploy-production-package:
   stage: production
-  rules:
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "true"'
-      when: manual
-    - if: '$PRODUCTION_DISABLED == "true"'
-      when: never
-    - when: manual
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+  except:
+    variables:
+      - $PRODUCTION_DISABLED
+      - $PACKAGES_DISABLED
+  when: manual
   allow_failure: false
   dependencies:
     - create-package-version
@@ -262,12 +270,14 @@ deploy-production-package:
 ####################################################
 deploy-production-metadata:
   stage: production
-  rules:
-    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master" &&  $USE_PACKAGES == "false"'
-      when: manual
-    - if: '$PRODUCTION_DISABLED == "true"'
-      when: never
-    - when: manual
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $PACKAGES_DISABLED
+  except:
+    variables:
+      - $PRODUCTION_DISABLED
+  when: manual
   allow_failure: false
   environment:
     name: production
