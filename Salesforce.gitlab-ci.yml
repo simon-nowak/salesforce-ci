@@ -167,7 +167,6 @@ create-package-version:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
-      - $USE_PACKAGES == 'true'
   script:
     - install_salesforce_cli
     - install_jq
@@ -496,19 +495,6 @@ deploy-production:
     else
       echo "No limits found for name $limit_name" >&2
     fi
-  }
-
-  # Generic Deploy function 
-  # Arguements: 
-  #     $1 = 
-  #     $2 =
-  #     $3 = 
-  # Executes the .....
-
-  function deploy_app() { 
-
-
-    
   }
 
   # Function to get package name and ID.
