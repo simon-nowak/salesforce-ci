@@ -68,7 +68,7 @@ create-scratch-org:
   stage: create-scratch-org
   only:
     variables:
-      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
+      - $CI_COMMIT_REF_NAME == 'master'
       - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
@@ -142,7 +142,7 @@ delete-scratch-org:
     GIT_STRATEGY: none
   only:
     variables:
-      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
+      - $CI_COMMIT_REF_NAME == 'master'
       - $DEPLOY_SCRATCH_ON_EVERY_COMMIT == 'true'
   except:
     variables:
@@ -166,10 +166,10 @@ create-package-version:
   stage: package
   only:
     variables:
-      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
+      - $CI_COMMIT_REF_NAME == 'master'
   except:
     variables:
-      - $PACKAGES_DISABLED
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING'
   script:
     - install_salesforce_cli
     - install_jq
@@ -192,11 +192,11 @@ deploy-sandbox-package:
   stage: staging
   only:
     variables:
-      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
+      - $CI_COMMIT_REF_NAME == 'master'
   except:
     variables:
       - $SANDBOX_DISABLED
-      - $PACKAGES_DISABLED
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING'
   when: manual
   allow_failure: false
   dependencies:
@@ -218,8 +218,8 @@ deploy-sandbox-metadata:
   stage: staging
   only:
     variables:
-      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
-      - $PACKAGES_DISABLED
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $SALESFORCE_DEPLOYMENT_APPROACH == 'ORG_BASED'
   except:
     variables:
       - $SANDBOX_DISABLED
@@ -242,11 +242,11 @@ deploy-production-package:
   stage: production
   only:
     variables:
-      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
+      - $CI_COMMIT_REF_NAME == 'master'
   except:
     variables:
       - $PRODUCTION_DISABLED
-      - $PACKAGES_DISABLED
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING'
   when: manual
   allow_failure: false
   dependencies:
@@ -272,8 +272,8 @@ deploy-production-metadata:
   stage: production
   only:
     variables:
-      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'master'
-      - $PACKAGES_DISABLED
+      - $CI_COMMIT_REF_NAME == 'master'
+      - $SALESFORCE_DEPLOYMENT_APPROACH == 'ORG_BASED'
   except:
     variables:
       - $PRODUCTION_DISABLED
