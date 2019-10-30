@@ -169,7 +169,7 @@ create-package-version:
       - $CI_COMMIT_REF_NAME == 'master'
   except:
     variables:
-      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING'
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING' && $SALESFORCE_DEPLOYMENT_APPROACH
   script:
     - install_salesforce_cli
     - install_jq
@@ -196,7 +196,7 @@ deploy-sandbox-package:
   except:
     variables:
       - $SANDBOX_DISABLED
-      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING'
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING' && $SALESFORCE_DEPLOYMENT_APPROACH 
   when: manual
   allow_failure: false
   dependencies:
@@ -245,7 +245,7 @@ deploy-production-package:
   except:
     variables:
       - $PRODUCTION_DISABLED
-      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING'
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING' && $SALESFORCE_DEPLOYMENT_APPROACH
   when: manual
   allow_failure: false
   dependencies:
