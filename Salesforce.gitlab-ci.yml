@@ -218,8 +218,7 @@ deploy-sandbox-metadata:
   stage: staging
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
-      - $SALESFORCE_DEPLOYMENT_APPROACH == 'ORG_BASED'
+      - $CI_COMMIT_REF_NAME == 'master' && $SALESFORCE_DEPLOYMENT_APPROACH == 'ORG_BASED'
   except:
     variables:
       - $SANDBOX_DISABLED
@@ -272,8 +271,7 @@ deploy-production-metadata:
   stage: production
   only:
     variables:
-      - $CI_COMMIT_REF_NAME == 'master'
-      - $SALESFORCE_DEPLOYMENT_APPROACH == 'ORG_BASED'
+      - $CI_COMMIT_REF_NAME == 'master' && $SALESFORCE_DEPLOYMENT_APPROACH == 'ORG_BASED'
   except:
     variables:
       - $PRODUCTION_DISABLED
