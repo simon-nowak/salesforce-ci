@@ -82,7 +82,7 @@ create-scratch-org:
     - deploy_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
-    url: $CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/ENVIRONMENT.html
+    url: $CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/ENVIRONMENT.html
     on_stop: delete-scratch-org
   artifacts:
     paths:
