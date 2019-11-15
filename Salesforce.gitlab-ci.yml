@@ -274,7 +274,8 @@ deploy-production:
     CLIURL=https://developer.salesforce.com/media/salesforce-cli/sfdx-linux-amd64.tar.xz
     wget -qO- $CLIURL | tar xJ -C sfdx --strip-components 1
     "./sfdx/install"
-    export PATH=./sfdx/$(pwd):$PATH
+    PATH=./sfdx/$(pwd):$PATH
+    export PATH
 
     # Output CLI version and plug-in information
     sfdx update
@@ -304,13 +305,15 @@ deploy-production:
     fi
 
     # Check if the scripts property in package.json contains key for "test:lwc"
-    local scriptValue=$(jq -r '.scripts["test:lwc"]' < package.json)
+    local scriptValue
+    scriptValue=$(jq -r '.scripts["test:lwc"]' < package.json)
 
     # If no "test:lwc" script property, then add one
     if [[ -z "$scriptValue" || $scriptValue == null ]]; then
-      local tmp=$(mktemp)
-      jq '.scripts["test:lwc"]="lwc-jest"' package.json > $tmp
-      mv $tmp package.json
+      local tmp
+      tmp=$(mktemp)
+      jq '.scripts["test:lwc"]="lwc-jest"' package.json > "$tmp"
+      mv "$tmp" package.json
       echo "added test:lwc script property to package.json" >&2
       cat package.json >&2
     fi
@@ -332,9 +335,10 @@ deploy-production:
     local hasJestTests=false
     for pkgDir in $(jq -r '.packageDirectories[].path' < sfdx-project.json)
     do
-      if [ -f $pkgDir ]; then
-        local fileCnt=$(find $pkgDir -type f -path "**/__tests__/*.test.js" | wc -l);
-        if [ $fileCnt -gt 0 ]; then
+      if [ -f "$pkgDir" ]; then
+        local fileCnt
+        fileCnt=$(find "$pkgDir" -type f -path "**/__tests__/*.test.js" | wc -l);
+        if [ "$fileCnt" -gt 0 ]; then
           hasJestTests=true
         fi
       fi
@@ -351,8 +355,9 @@ deploy-production:
   # so we skip running npm if there are no tests, essentially skipping them to avoid error.
 
   function test_lwc_jest() {
-    local hasJestTests=$(check_has_jest_tests)
-    if [ $hasJestTests ]; then
+    local hasJestTests
+    hasJestTests=$(check_has_jest_tests)
+    if [ "$hasJestTests" ]; then
       npm run test:lwc
     else
       echo 'Skipping lwc tests, found no jest tests in any package directories' >&2
@@ -372,7 +377,7 @@ deploy-production:
 
     local org_username=$1
 
-    if [ ! $org_username ]; then
+    if [ ! "$org_username" ]; then
       echo "ERROR No org username provided to 'test_scratch_org' function" >&2
       exit 1;
     fi
@@ -387,11 +392,13 @@ deploy-production:
     mkdir -p ./tests/apex
 
     # Check if the scripts property in package.json contains key for "test:scratch"
-    local scriptValue=$(jq -r '.scripts["test:scratch"]' < package.json)
+    local scriptValue
+    scriptValue=$(jq -r '.scripts["test:scratch"]' < package.json)
 
     # If no "test:scratch" script property, then add one
     if [[ -z "$scriptValue" || $scriptValue == null ]]; then
-      local tmp=$(mktemp)
+      local tmp
+      tmp=$(mktemp)
       jq '.scripts["test:scratch"]="sfdx force:apex:test:run --codecoverage --resultformat junit --wait 10 --outputdir ./tests/apex"' package.json > $tmp
       mv $tmp package.json
       echo "added test:scratch script property to package.json" >&2
