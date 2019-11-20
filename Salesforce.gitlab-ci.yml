@@ -82,7 +82,7 @@ create-scratch-org:
     - deploy_scratch_org DEVHUB "scratch/$CI_COMMIT_REF_SLUG"
   environment:
     name: scratch/$CI_COMMIT_REF_SLUG
-    url: $CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/ENVIRONMENT.html?job=$CI_JOB_NAME
+    url: $CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/file/ENVIRONMENT.html
     on_stop: delete-scratch-org
   artifacts:
     paths:
@@ -167,6 +167,9 @@ create-package-version:
   only:
     variables:
       - $CI_COMMIT_REF_NAME == 'master'
+  except:
+    variables:
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING' && $SALESFORCE_DEPLOYMENT_APPROACH
   script:
     - install_salesforce_cli
     - install_jq
@@ -183,9 +186,9 @@ create-package-version:
       - SUBSCRIBER_PACKAGE_VERSION_ID.txt
 
 ####################################################
-# Deploy into the sandbox org
+# Deploy a package into the sandbox org.
 ####################################################
-deploy-sandbox:
+deploy-sandbox-package:
   stage: staging
   only:
     variables:
@@ -193,6 +196,7 @@ deploy-sandbox:
   except:
     variables:
       - $SANDBOX_DISABLED
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING' && $SALESFORCE_DEPLOYMENT_APPROACH 
   when: manual
   allow_failure: false
   dependencies:
@@ -204,17 +208,36 @@ deploy-sandbox:
     - install_salesforce_cli
     - install_jq
     - authenticate SANDBOX $SANDBOX_AUTH_URL
-    - 
     - package_version_id=$(cat SUBSCRIBER_PACKAGE_VERSION_ID.txt)
-
     - install_package_version SANDBOX $package_version_id
 
+####################################################
+# Deploy metadata into the sandbox org.
+####################################################
+deploy-sandbox-metadata:
+  stage: staging
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master' && $SALESFORCE_DEPLOYMENT_APPROACH == 'ORG_BASED'
+  except:
+    variables:
+      - $SANDBOX_DISABLED
+  when: manual
+  allow_failure: false
+  environment:
+    name: sandbox
+    url: https://test.salesforce.com
+  script:
+    - install_salesforce_cli
+    - install_jq
+    - authenticate SANDBOX $SANDBOX_AUTH_URL
+    - deploy_metadata SANDBOX
 
 ####################################################
 # Promotes and installs the package version created
 # and installed in the sandbox in the prior stage.
 ####################################################
-deploy-production:
+deploy-production-package:
   stage: production
   only:
     variables:
@@ -222,6 +245,7 @@ deploy-production:
   except:
     variables:
       - $PRODUCTION_DISABLED
+      - $SALESFORCE_DEPLOYMENT_APPROACH != 'PACKAGING' && $SALESFORCE_DEPLOYMENT_APPROACH
   when: manual
   allow_failure: false
   dependencies:
@@ -240,6 +264,27 @@ deploy-production:
     - authenticate PRODUCTION $PRODUCTION_AUTH_URL $DEVHUB_AUTH_URL
     - install_package_version PRODUCTION $package_version_id
 
+####################################################
+# Deploy metadata into the production org.
+####################################################
+deploy-production-metadata:
+  stage: production
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME == 'master' && $SALESFORCE_DEPLOYMENT_APPROACH == 'ORG_BASED'
+  except:
+    variables:
+      - $PRODUCTION_DISABLED
+  when: manual
+  allow_failure: false
+  environment:
+    name: production
+    url: https://login.salesforce.com
+  script:
+    - install_salesforce_cli
+    - install_jq
+    - authenticate PRODUCTION $PRODUCTION_AUTH_URL $DEVHUB_AUTH_URL
+    - deploy_metadata PRODUCTION
 
 .sfdx_helpers: &sfdx_helpers |
 
@@ -496,6 +541,7 @@ deploy-production:
       echo "No limits found for name $limit_name" >&2
     fi
   }
+
 
   # Function to get package name and ID.
   # Arguments:
@@ -834,6 +880,43 @@ deploy-production:
     done
   }
 
+  # Deploys metadata to the org.
+  # Arguments
+  #     $1 = org username to deploy to
+
+  function deploy_metadata() {
+
+    local org_username=$1
+
+    if [ ! $org_username ]; then
+      echo "ERROR No org username provided to 'deploy_metadata' function" >&2
+      exit 1;
+    fi
+
+    # Check for default package directory in sfdx-project.json
+    source_folder=$(cat sfdx-project.json | jq -r '.packageDirectories[] | select(.default==true) | .path')
+    if [ ! $source_folder ]; then
+      echo "no default package directory found, defaulting to first package directory listed in sfdx-project.json" >&2
+      cat sfdx-project.json >&2
+    fi
+
+    # Check for any package directory in sfdx-project.json
+    if [ ! $source_folder ]; then
+      echo "no default package directory found, defaulting to first package directory listed in sfdx-project.json" >&2
+      cat sfdx-project.json >&2
+      source_folder=$(cat sfdx-project.json | jq -r '.packageDirectories | .[0] | .path')
+    fi
+
+    # Giving up
+    if [ ! $source_folder ]; then
+      echo "ERROR Default package directory not specified. Specify a default package directory in sfdx-project.json." >&2
+      exit 1
+    fi
+
+    local cmd="sfdx force:source:deploy --targetusername $org_username --sourcepath $source_folder --wait 10 --json" && (echo $cmd >&2)
+    local output=$($cmd) && (echo $output | jq '.' >&2)
+
+  }
 
 before_script:
   - *sfdx_helpers

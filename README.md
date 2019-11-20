@@ -83,6 +83,7 @@ Here are some other variables that are optional:
 
 - `DEPLOY_SCRATCH_ON_EVERY_COMMIT`: "true" to deploy a scratch org on every commit in a merge request, otherwise it won't.
 - `PACKAGE_NAME`: Optional. Must match one of the `packageDirectories` entries in `sfdx-project.json`. If not present, then the CI pipeline uses the default package directory from `sfdx-project.json`.
+- `SALESFORCE_DEPLOYMENT_APPROACH` : Optional variable. The default value is assumed to be `PACKAGING`. Pipelines without this variable set or set to `PACKAGING` explicitly will execute creating a versioned unlocked package and deploying it into salesforce orgs. If you would like to only push application meta-data in the `/force-app` directory and not create an unlocked package, then set the value of this variable to `ORG_BASED`.  
 
 Optionally, disable entire jobs with the following boolean variables:
 
